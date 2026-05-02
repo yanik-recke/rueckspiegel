@@ -1,0 +1,113 @@
+# Rückspiegel — Project Notes for Future Claude Agents
+
+A small webapp that tracks gas-station price-change compliance in Germany. German fuel-pricing rules effectively allow only one daily price increase, at 12:00 (Europe/Berlin). The app visualizes which stations follow the rule and which don't.
+
+## Repository layout
+```
+db/                      SQL schema + mock data (markdown with embedded SQL)
+  gas_station_schema.md  Tables: stations, price_changes, daily_compliance
+  mock_data.md           Seed INSERTs for 3 stations + price history (2026-05-01)
+frontend/                Vite + TS + MapLibre frontend (bun)
+ingestion/               Bun + TS scripts that pull tankerkoenig data into Supabase
+  src/lib.ts             Shared helpers: env, Berlin "yesterday", Basic-auth fetch (text/stream), logger, supabase client
+  src/load-stations.ts   Fetches yesterday's stations CSV and upserts into `stations`
+  src/load-prices.ts     Streams yesterday's prices CSV and upserts into `price_changes`
+  README.md              Setup, env vars, CSV→DB column mapping, sample log output
+```
+
+## Stack decisions
+- **Frontend:** Vite + TypeScript, MapLibre GL, OpenFreeMap Positron tiles (no API key), Supabase JS client. **Bun** is the package manager — use `bun install` / `bun run dev`, not npm.
+- **Backend:** Supabase (Postgres + PostGIS + PostgREST + anon key model).
+- **Mobile-first** dark UI; bottom sheet on mobile, side panel ≥768px. Safe-area insets respected.
+
+## Data model essentials
+- `stations.location` is `GEOGRAPHY(POINT, 4326)`. PostgREST returns it as **EWKB hex** — parsed client-side in `frontend/src/wkb.ts`.
+- Prices stored as integers in tenths-of-cent (e.g. `1859` = €1.859). Frontend divides by 1000 for display.
+- `daily_compliance` is the **frontend's primary data source for the map** (one row per `(station, date)`). Populated server-side by the SQL function `recompute_daily_compliance(target_date)` (defined in `db/migration_002_daily_compliance_rollup.md`), called at the end of each `load-prices` run. Holds `is_compliant`, `increases_count`, `last_increase_time`, plus latest non-null `price_e5/e10/diesel` for that day so the sheet doesn't need a second fetch. The `available_dates(n)` RPC returns the most recent N distinct dates for the day-selector pills. The per-station increase log shown in the sheet is **lazy-fetched on click** from `price_changes` for that station + date, then run through the same `computeCompliance` peak-based logic that the SQL function uses (kept in sync).
+
+## Compliance rule (as implemented)
+The MTSK rule allows one daily price increase, conventionally at noon. **In practice the price-event data we get from tankerkoenig is sparse** — many stations have only a handful of events per day, so we cannot pin the actual moment of an increase from `(prev_event, curr_event)` pairs. We therefore relax the rule:
+
+- **0 or 1 E5 increase ⇒ compliant** (the one is assumed to be the allowed noon increase).
+- **2+ E5 increases ⇒ non-compliant** (rule allows at most one).
+
+An "increase" is **peak-based**: `price_e5` going up vs. the previous non-null reading **and** exceeding the day's previous high. This filters out MTSK flickers where a station bumps to a high, drops briefly, then returns to the same high — only the first step counts. A genuine second increase to a new high (e.g. noon to 2.10, afternoon to 2.15) still produces 2 increases. Null E5 rows are skipped (not treated as 0). See `computeCompliance` in `frontend/src/main.ts`. The noon check is still used to color which specific increases are flagged in the UI when a station has 2+ — non-noon ones get the violator badge first.
+
+Why we relaxed: with sparse event data (often just 2–10 rows/day), we can't pin the timing of an increase to noon precisely; and MTSK regularly records flicker patterns that look like 2 events but represent one. The peak-based + "≤1 ⇒ compliant" combination matches the rule's intent ("the station never charged more than the daily allowed step up") and aligns with what ADAC appears to show.
+
+## Frontend architecture
+- `src/main.ts` — entry. Calls the `available_dates(5)` RPC for the day-selector, renders pills, defaults to the most recent. For the active date: paginates `stations` once (cached for the session) and `daily_compliance` filtered by date (~16k rows, 16 pages), merges into `Station[]`, hands them to the map. Day switches reuse a `Map<date, Station[]>` cache so revisits are instant. Per-station click triggers a small lazy fetch of `price_changes` for that station + date, runs `computeCompliance` (peak-based rule) on the result, and fills in the sheet's increase log via `setStationIncreases`.
+- `src/map.ts` — MapLibre setup. Stations render as a single GeoJSON source + `circle` layer (`stations-circle`), data-driven color from `is_compliant` (green/red). `minzoom = 8` so dots only appear once cities are visible; radius interpolates with zoom. Click handler attached to the layer (no per-marker DOM). Centers on Germany (`[10.4515, 51.1657]`, zoom 5.4).
+- `src/sheet.ts` — info panel showing status badge, current prices (E5/E10/Diesel), and the day's price-increase log with violators flagged.
+- `src/supabase.ts` — client + types (`StationRow`, `PriceChangeRow`, `Station`, `PriceIncrease`).
+- `src/wkb.ts` — minimal EWKB-hex POINT parser (handles SRID flag + endianness).
+- `src/styles.css` — design tokens at the top (`--bg`, `--surface`, `--accent`, `--bad`, etc.). Dark theme.
+
+### Pagination + 1000-row cap
+PostgREST caps any single `select` response at 1000 rows. `loadAllStationRows` and `loadComplianceForDate` in `main.ts` loop `.range(from, from + 999)` until a short page comes back. Any new full-table fetch must paginate the same way — a plain `.select()` will silently truncate.
+
+### Day selector
+`#day-selector` in the topbar holds 5 `.day-pill` buttons rendered from `available_dates(5)`. Each pill shows `DD.MM.` plus a sublabel (`Heute` / `Gestern` / weekday short name). Active pill is highlighted with the accent border. Clicking switches `activeDate`, reloads (or pulls from cache), and re-renders the map source. The sheet hides on day switch — we don't carry station selection across days.
+
+## Ingestion (`ingestion/`)
+Bun + TypeScript scripts that pull tankerkoenig data into Supabase. Uses the **service-role key** server-side, so RLS doesn't apply.
+
+**Why no git clone:** the upstream `tankerkoenig-data` repo is ~100 GB unpacked. Each script fetches just the CSV(s) it needs over HTTPS with Basic auth.
+
+### Env (`ingestion/.env`, gitignored)
+- `TK_USER` / `TK_PASS` — tankerkoenig data-portal credentials (Basic auth via `Authorization` header).
+- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` — service-role key, never to be exposed to the frontend.
+
+Scripts (run from `ingestion/`):
+- `bun run load-stations` — refresh stations.
+- `bun run load-prices` — ingest yesterday's price events.
+- `bun run daily` — runs the two in order; this is the cron entry point. Stations must run first because `price_changes.station_id` has an FK to `stations.id`.
+
+Recommended schedule: ~03:00 Europe/Berlin (yesterday's CSV is published by then). Scheduler choice (cron / GH Actions / Supabase scheduled function) is out of scope.
+
+### `bun run load-stations`
+- Fetches **yesterday's** stations CSV (Europe/Berlin — today's file usually doesn't exist yet) from
+  `https://data.tankerkoenig.de/.../stations/YYYY/MM/YYYY-MM-DD-stations.csv`.
+- Deletes the three mock-station UUIDs (`11111111-…`, `22222222-…`, `33333333-…`); `price_changes` cascade.
+- Upserts into `public.stations` in batches of 1000 keyed on `id`.
+- CSV → DB mapping:
+  - `uuid` → `id`
+  - `name` → `name`; `brand` → `brand` (empty → `null`)
+  - `latitude`, `longitude` → `location` as `SRID=4326;POINT(lng lat)` EWKT (PostGIS accepts this directly for `GEOGRAPHY`).
+  - `street + " " + house_number` → `street`; `post_code` truncated to 5 chars → `postcode`.
+  - `city`, `first_active`, `openingtimes_json` are **ignored** (no DB columns).
+- Skips rows missing `uuid`/`name` or with non-finite / `(0,0)` coords; skip counts logged as a single WARN line.
+- Logging is `[+N.Ns]`-prefixed and reports fetch size+time, parse count, mock-delete count, and per-batch progress with rows/sec.
+
+### `bun run load-prices [-- --date YYYY-MM-DD]`
+- Default: yesterday in Europe/Berlin. Pass `--date YYYY-MM-DD` for backfill (e.g. `bun run load-prices -- --date 2026-04-27`).
+- Streams the day's `prices/YYYY/MM/YYYY-MM-DD-prices.csv` (CSV columns: `date, station_uuid, diesel, e5, e10, dieselchange, e5change, e10change`).
+- Change codes: `0=no change, 1=change, 2=removed (→ null), 3=new`.
+- **Preflights** the full set of `stations.id` values into a `Set` before streaming (paginated 1000 at a time). Rows whose `station_uuid` isn't in the set are skipped in-stream and counted as `unknownStation` in the final log line. **This is critical**: without it, even one unknown FK in a 5000-row batch causes Postgres to roll back the whole batch — early testing showed ~80% of rows lost to this when ingesting before refreshing stations.
+- Per row: skip if `station_uuid` unknown; skip if all three change codes are `0`; otherwise insert `{ station_id, created_at = date, price_e5/e10/diesel = round(value × 1000) }` (tenths-of-cent).
+- Upserts in batches of 5000 with `onConflict: "station_id,created_at", ignoreDuplicates: true` — depends on the `UNIQUE (station_id, created_at)` constraint added by `db/migration_001_price_changes_unique.md`. Without that migration, reruns will double-insert.
+- If the `stations` table is empty, exits with an error rather than silently producing an empty ingest.
+- Uses streaming CSV parsing (`csv-parse`'s async iterator), so memory stays flat regardless of file size.
+
+## Supabase setup (must be done in dashboard for the frontend to work)
+1. **Enable PostGIS:** `CREATE EXTENSION IF NOT EXISTS postgis;`
+2. **Run schema** from `db/gas_station_schema.md`.
+3. **Seed mock data** from `db/mock_data.md`.
+4. **Enable RLS** on all three tables, add `select` policies for `anon, authenticated using (true)`. No write policies — ingestion uses the service-role key (server-side only).
+5. **Frontend `.env`** (in `frontend/`): copy from `.env.example`, fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Note: Supabase rebranded API keys — the **publishable / "default"** key (`sb_publishable_...`) is what goes in `VITE_SUPABASE_ANON_KEY`. The secret key never goes in any `VITE_*` variable.
+
+## Conventions / preferences observed
+- User wants **minimal, modern, mobile-first** UI — no over-engineering, no premature abstractions.
+- German UI labels in the sheet (Konform / Nicht konform / Verstoß / etc.).
+- Comments are sparse; only used where the *why* is non-obvious (e.g. the schema-rule citation in `computeCompliance`).
+- The frontend deliberately avoids depending on a custom Supabase RPC — earlier scaffold had `stations_with_status()` but it was dropped after the user asked to use the schema as-is.
+
+## Open follow-ups (not yet done)
+- Server-side `daily_compliance` rollup (or an RPC like `compliance_for_day(d)` returning one row per station with `is_compliant`, `increases_count`, latest prices, increases array). The client currently paginates the full day's `price_changes` (potentially 100k+ rows) just to compute per-station summaries — moving that to SQL is the next perf win and would also let the frontend drop `computeCompliance`.
+- If station count grows substantially (multi-country, etc.), switch from "load all + GeoJSON layer" to a Postgres RPC like `stations_in_bbox(min_lng, min_lat, max_lng, max_lat)` (GiST-indexed) called on `moveend`. At ~16k DE stations the current approach is fine.
+- No tests yet. Worth adding once shape stabilizes.
+
+## Gotchas hit so far
+- The harmless `WebGL warning: texImage: Alpha-premult and y-flip are deprecated` from MapLibre/Firefox can be ignored.
+- PostGIS `GEOGRAPHY` columns over PostgREST come back as hex, not GeoJSON — hence the WKB parser.
+- DST: do not check noon by adding `+2` to UTC hours. Use `Intl.DateTimeFormat` with `timeZone: "Europe/Berlin"`.

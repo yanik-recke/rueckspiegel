@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0b0d10" />
+    <title>Rückspiegel</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="topbar-title">
+          <h1>Rückspiegel</h1>
+          <span class="subtitle">Tankstellen-Compliance</span>
+        </div>
+        <nav id="day-selector" class="day-selector" aria-label="Tag wählen"></nav>
+      </header>
+      <main id="map" aria-label="Karte"></main>
+      <aside id="sheet" class="sheet" hidden>
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="sheet-content"></div>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

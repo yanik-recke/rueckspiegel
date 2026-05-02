@@ -1,0 +1,18 @@
+{
+  "name": "rueckspiegel-ingestion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "load-stations": "bun run src/load-stations.ts",
+    "load-prices": "bun run src/load-prices.ts",
+    "daily": "bun run src/load-stations.ts && bun run src/load-prices.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "csv-parse": "^5.5.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

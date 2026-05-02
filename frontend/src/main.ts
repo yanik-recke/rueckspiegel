@@ -8,6 +8,7 @@ import {
   type StationRow,
 } from "./supabase";
 import { hideSheet, setStationIncreases, showStation } from "./sheet";
+import { mountList } from "./list";
 import { parsePointHex } from "./wkb";
 
 const mapEl = document.getElementById("map");
@@ -19,6 +20,14 @@ map.on("click", () => hideSheet());
 const stationsByDate = new Map<string, Station[]>();
 let allStationRows: StationRow[] | null = null;
 let activeDate: string | null = null;
+
+const list = mountList({
+  map,
+  getStations: () => (activeDate ? stationsByDate.get(activeDate) ?? [] : []),
+  onSelect: (s) => {
+    if (activeDate) void onStationClick(s, activeDate);
+  },
+});
 
 map.once("load", async () => {
   const dates = await loadAvailableDates(5);
@@ -42,6 +51,7 @@ async function selectDate(date: string, dates: string[]) {
     stationsByDate.set(date, stations);
   }
   renderStations(map, stations, (s) => onStationClick(s, date));
+  list.refresh();
 }
 
 async function onStationClick(station: Station, date: string) {
@@ -341,7 +351,10 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   const popover = document.querySelector<HTMLDivElement>(".day-popover");
   const moreBtn = document.querySelector<HTMLButtonElement>(".day-more");
-  if (!popover || popover.hidden) return;
-  popover.hidden = true;
-  moreBtn?.setAttribute("aria-expanded", "false");
+  if (popover && !popover.hidden) {
+    popover.hidden = true;
+    moreBtn?.setAttribute("aria-expanded", "false");
+    return;
+  }
+  if (list.isOpen()) list.close();
 });

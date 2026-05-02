@@ -32,6 +32,15 @@ export function createMap(container: HTMLElement): MLMap {
   return map;
 }
 
+export function flyToStation(map: MLMap, s: Station): void {
+  const h = map.getContainer().clientHeight;
+  // On mobile the bottom sheet covers ~60vh; offset the camera so the station
+  // sits in the upper third of the visible map area instead of behind the sheet.
+  const isMobile = window.matchMedia("(max-width: 767px)").matches;
+  const offsetY = isMobile ? -h / 6 : 0;
+  map.flyTo({ center: [s.lng, s.lat], zoom: 13, speed: 1.4, offset: [0, offsetY] });
+}
+
 // Module-level so re-rendering for a different day swaps the lookup AND the click target.
 let currentById = new Map<string, Station>();
 let currentOnSelect: ((s: Station) => void) | null = null;

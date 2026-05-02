@@ -18,8 +18,39 @@
           <span class="subtitle">Tankstellen-Compliance</span>
         </div>
         <nav id="day-selector" class="day-selector" aria-label="Tag wählen"></nav>
+        <button
+          id="list-toggle"
+          class="list-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="list-panel"
+          aria-label="Liste anzeigen"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
       </header>
       <main id="map" aria-label="Karte"></main>
+      <aside id="list-panel" class="list-panel" hidden aria-label="Tankstellen-Liste">
+        <div class="list-header">
+          <input
+            id="list-search"
+            class="list-search"
+            type="search"
+            placeholder="Suchen (Name, Marke, Straße, PLZ)"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <label class="list-filter">
+            <input id="list-only-violations" type="checkbox" />
+            <span>Nur Verstöße</span>
+          </label>
+          <button id="list-close" class="list-close" type="button" aria-label="Schließen">×</button>
+        </div>
+        <div id="list-rows" class="list-rows" role="list"></div>
+        <div id="list-footer" class="list-footer" hidden></div>
+      </aside>
       <aside id="sheet" class="sheet" hidden>
         <div class="sheet-handle" aria-hidden="true"></div>
         <div class="sheet-content"></div>

@@ -245,6 +245,27 @@ function isNoonBerlin(iso: string): boolean {
   return get("hour") === "12" && get("minute") === "00" && get("second") === "00";
 }
 
+function pillMarkup(date: string, opts: { active?: boolean } = {}): string {
+  const today = berlinDateFmt.format(new Date());
+  const yesterday = berlinDateFmt.format(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const [, mm, dd] = date.split("-");
+  const probe = new Date(`${date}T12:00:00Z`);
+  let sublabel: string;
+  if (date === today) sublabel = "Heute";
+  else if (date === yesterday) sublabel = "Gestern";
+  else sublabel = berlinWeekdayFmt.format(probe);
+  return `
+    <button
+      class="day-pill${opts.active ? " day-pill--active" : ""}"
+      data-date="${date}"
+      aria-pressed="${opts.active ? "true" : "false"}"
+    >
+      <span class="day-pill__date">${dd}.${mm}.</span>
+      <span class="day-pill__sub">${sublabel}</span>
+    </button>
+  `;
+}
+
 function renderDayPills(dates: string[], active: string | null) {
   const nav = document.getElementById("day-selector");
   if (!nav) return;
@@ -252,35 +273,75 @@ function renderDayPills(dates: string[], active: string | null) {
     nav.innerHTML = `<span class="day-empty">Keine Daten</span>`;
     return;
   }
+  const activeDateStr = active ?? dates[0];
+  const others = dates.filter((d) => d !== activeDateStr);
+  const moreButton =
+    others.length > 0
+      ? `<button class="day-more" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Weitere Tage">…</button>
+         <div class="day-popover" role="menu" hidden>
+           ${others.map((d) => `
+             <button class="day-popover__item" role="menuitem" data-date="${d}">
+               ${pillItemLabel(d)}
+             </button>
+           `).join("")}
+         </div>`
+      : "";
+
+  nav.innerHTML = `
+    ${pillMarkup(activeDateStr, { active: true })}
+    ${moreButton}
+  `;
+
+  // Active pill: clicking does nothing (already selected) but keeps the affordance.
+  // Switching happens via the popover.
+
+  const moreBtn = nav.querySelector<HTMLButtonElement>(".day-more");
+  const popover = nav.querySelector<HTMLDivElement>(".day-popover");
+  if (moreBtn && popover) {
+    moreBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const willShow = popover.hidden;
+      popover.hidden = !willShow;
+      moreBtn.setAttribute("aria-expanded", willShow ? "true" : "false");
+    });
+    popover.querySelectorAll<HTMLButtonElement>(".day-popover__item").forEach((item) => {
+      item.addEventListener("click", () => {
+        const d = item.dataset.date;
+        popover.hidden = true;
+        moreBtn.setAttribute("aria-expanded", "false");
+        if (!d || d === activeDate) return;
+        void selectDate(d, dates);
+      });
+    });
+  }
+}
+
+function pillItemLabel(date: string): string {
   const today = berlinDateFmt.format(new Date());
   const yesterday = berlinDateFmt.format(new Date(Date.now() - 24 * 60 * 60 * 1000));
-  nav.innerHTML = dates
-    .map((d) => {
-      const [, mm, dd] = d.split("-");
-      const probe = new Date(`${d}T12:00:00Z`);
-      let sublabel: string;
-      if (d === today) sublabel = "Heute";
-      else if (d === yesterday) sublabel = "Gestern";
-      else sublabel = berlinWeekdayFmt.format(probe);
-      const isActive = d === active;
-      return `
-        <button
-          class="day-pill${isActive ? " day-pill--active" : ""}"
-          data-date="${d}"
-          aria-pressed="${isActive}"
-        >
-          <span class="day-pill__date">${dd}.${mm}.</span>
-          <span class="day-pill__sub">${sublabel}</span>
-        </button>
-      `;
-    })
-    .join("");
-
-  nav.querySelectorAll<HTMLButtonElement>(".day-pill").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const d = btn.dataset.date;
-      if (!d || d === activeDate) return;
-      void selectDate(d, dates);
-    });
-  });
+  const [, mm, dd] = date.split("-");
+  const probe = new Date(`${date}T12:00:00Z`);
+  let sublabel: string;
+  if (date === today) sublabel = "Heute";
+  else if (date === yesterday) sublabel = "Gestern";
+  else sublabel = berlinWeekdayFmt.format(probe);
+  return `<span class="day-popover__date">${dd}.${mm}.</span><span class="day-popover__sub">${sublabel}</span>`;
 }
+
+// Close popover on outside click / Escape.
+document.addEventListener("click", (e) => {
+  const popover = document.querySelector<HTMLDivElement>(".day-popover");
+  const moreBtn = document.querySelector<HTMLButtonElement>(".day-more");
+  if (!popover || popover.hidden) return;
+  if (e.target instanceof Node && (popover.contains(e.target) || moreBtn?.contains(e.target))) return;
+  popover.hidden = true;
+  moreBtn?.setAttribute("aria-expanded", "false");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const popover = document.querySelector<HTMLDivElement>(".day-popover");
+  const moreBtn = document.querySelector<HTMLButtonElement>(".day-more");
+  if (!popover || popover.hidden) return;
+  popover.hidden = true;
+  moreBtn?.setAttribute("aria-expanded", "false");
+});

@@ -22,6 +22,7 @@ CREATE INDEX IF NOT EXISTS daily_compliance_date_station_idx
 CREATE OR REPLACE FUNCTION recompute_daily_compliance(target_date date)
 RETURNS integer
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   affected integer;
@@ -34,7 +35,7 @@ BEGIN
       pc.price_e5,
       pc.price_e10,
       pc.price_diesel
-    FROM price_changes pc
+    FROM public.price_changes pc
     WHERE (pc.created_at AT TIME ZONE 'Europe/Berlin')::date = target_date
   ),
   e5_walk AS (
@@ -89,7 +90,7 @@ BEGIN
     SELECT DISTINCT station_id FROM day_rows
   ),
   upsert AS (
-    INSERT INTO daily_compliance (
+    INSERT INTO public.daily_compliance (
       station_id, date, increases_count, last_increase_time, is_compliant,
       price_e5, price_e10, price_diesel
     )
@@ -127,9 +128,10 @@ CREATE OR REPLACE FUNCTION available_dates(n integer DEFAULT 5)
 RETURNS SETOF date
 LANGUAGE sql
 STABLE
+SET search_path = ''
 AS $$
   SELECT DISTINCT date
-  FROM daily_compliance
+  FROM public.daily_compliance
   ORDER BY date DESC
   LIMIT n;
 $$;

@@ -47,7 +47,7 @@ Why we relaxed: with sparse event data (often just 2–10 rows/day), we can't pi
 PostgREST caps any single `select` response at 1000 rows. `loadAllStationRows` and `loadComplianceForDate` in `main.ts` loop `.range(from, from + 999)` until a short page comes back. Any new full-table fetch must paginate the same way — a plain `.select()` will silently truncate.
 
 ### Day selector
-`#day-selector` in the topbar holds 5 `.day-pill` buttons rendered from `available_dates(5)`. Each pill shows `DD.MM.` plus a sublabel (`Heute` / `Gestern` / weekday short name). Active pill is highlighted with the accent border. Clicking switches `activeDate`, reloads (or pulls from cache), and re-renders the map source. The sheet hides on day switch — we don't carry station selection across days.
+`#day-selector` in the topbar holds the active-date pill plus a `…` more-button (rendered only when more than one date exists in `available_dates(5)`). Clicking `…` opens a `.day-popover` (`role="menu"`, anchored right) listing the other available dates with `DD.MM.` + a sublabel (`Heute` / `Gestern` / weekday short name). Selecting a date closes the popover, switches `activeDate`, reloads (or pulls from cache), and re-renders the map source. Outside-click or `Escape` closes the popover. The sheet hides on day switch — we don't carry station selection across days.
 
 ## Ingestion (`ingestion/`)
 Bun + TypeScript scripts that pull tankerkoenig data into Supabase. Uses the **service-role key** server-side, so RLS doesn't apply.
@@ -88,6 +88,7 @@ Recommended schedule: ~03:00 Europe/Berlin (yesterday's CSV is published by then
 - Upserts in batches of 5000 with `onConflict: "station_id,created_at", ignoreDuplicates: true` — depends on the `UNIQUE (station_id, created_at)` constraint added by `db/migration_001_price_changes_unique.md`. Without that migration, reruns will double-insert.
 - If the `stations` table is empty, exits with an error rather than silently producing an empty ingest.
 - Uses streaming CSV parsing (`csv-parse`'s async iterator), so memory stays flat regardless of file size.
+- After the insert phase, calls the Postgres RPC `recompute_daily_compliance(target_date)` to (re)populate `daily_compliance` for the ingested date. Logs the row count returned. The frontend reads from this rollup, never from raw `price_changes` for the map view.
 
 ## Supabase setup (must be done in dashboard for the frontend to work)
 1. **Enable PostGIS:** `CREATE EXTENSION IF NOT EXISTS postgis;`
@@ -103,7 +104,9 @@ Recommended schedule: ~03:00 Europe/Berlin (yesterday's CSV is published by then
 - The frontend deliberately avoids depending on a custom Supabase RPC — earlier scaffold had `stations_with_status()` but it was dropped after the user asked to use the schema as-is.
 
 ## Open follow-ups (not yet done)
-- Server-side `daily_compliance` rollup (or an RPC like `compliance_for_day(d)` returning one row per station with `is_compliant`, `increases_count`, latest prices, increases array). The client currently paginates the full day's `price_changes` (potentially 100k+ rows) just to compute per-station summaries — moving that to SQL is the next perf win and would also let the frontend drop `computeCompliance`.
+- Per-day non-compliant counts inside the day pills. Easy add now that the rollup exists — `available_dates` could be replaced by an RPC returning `(date, violator_count)`.
+- Retention / cleanup of old `daily_compliance` rows beyond a window. ~16k rows/day is fine for years, but eventually worth a delete policy.
+- Today's partial day. `load-prices` ingests yesterday's published file. If the user wants "today so far", we'd need to also pull the (live-updating) `today.csv` — separate ticket.
 - If station count grows substantially (multi-country, etc.), switch from "load all + GeoJSON layer" to a Postgres RPC like `stations_in_bbox(min_lng, min_lat, max_lng, max_lat)` (GiST-indexed) called on `moveend`. At ~16k DE stations the current approach is fine.
 - No tests yet. Worth adding once shape stabilizes.
 

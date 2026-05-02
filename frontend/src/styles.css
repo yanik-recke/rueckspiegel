@@ -51,7 +51,12 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   position: relative;
-  z-index: 2;
+  z-index: 10;
+}
+
+.maplibregl-ctrl-top-right {
+  margin-top: 0.5rem;
+  margin-right: 0.25rem;
 }
 
 .topbar-title {
@@ -74,16 +79,11 @@ body {
 }
 
 .day-selector {
+  position: relative;
   display: flex;
   gap: 0.4rem;
   margin-left: auto;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.day-selector::-webkit-scrollbar {
-  display: none;
+  align-items: center;
 }
 
 .day-pill {
@@ -134,6 +134,90 @@ body {
   margin-left: auto;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.day-more {
+  flex: none;
+  width: 2.5rem;
+  height: 2.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  padding-bottom: 0.45rem;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.day-more:hover {
+  background: var(--surface);
+}
+
+.day-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.day-more[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.day-popover {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 12rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  z-index: 5;
+}
+
+.day-popover[hidden] {
+  display: none;
+}
+
+.day-popover__item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.day-popover__item:hover,
+.day-popover__item:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.day-popover__date {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.day-popover__sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .sheet-increases--loading {

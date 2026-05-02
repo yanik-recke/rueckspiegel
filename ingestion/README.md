@@ -89,10 +89,11 @@ Errors are logged with stack traces and exit with code `1`.
 ### `load-prices`
 
 ```bash
-bun run load-prices
+bun run load-prices                       # yesterday (Europe/Berlin)
+bun run load-prices -- --date 2026-04-27  # specific date (backfill)
 ```
 
-Fetches yesterday's prices CSV from:
+Fetches the day's prices CSV from:
 
 ```
 https://data.tankerkoenig.de/tankerkoenig-organization/tankerkoenig-data/raw/branch/master/prices/YYYY/MM/YYYY-MM-DD-prices.csv
@@ -107,7 +108,9 @@ Per row:
 
 Upserts in batches of 5000 with `onConflict: "station_id,created_at", ignoreDuplicates: true`.
 
-> **Requires migration 001.** This script depends on `UNIQUE (station_id, created_at)` on `price_changes` — apply `db/migration_001_price_changes_unique.md` once before running. Without it, reruns will double-insert.
+> **Requires migrations 001 and 002.** This script depends on:
+> - `UNIQUE (station_id, created_at)` on `price_changes` (`db/migration_001_price_changes_unique.md`) — without it, reruns double-insert.
+> - The `recompute_daily_compliance(target_date)` SQL function (`db/migration_002_daily_compliance_rollup.md`) — called at the end of every run to (re)populate `daily_compliance` for the ingested date. Without it, the post-insert step fails and the frontend sees empty rollup data.
 
 Foreign-key violations (`23503`, "station not found") are logged as a WARN per affected batch but don't abort the run. If you see them, run `load-stations` first (or just use `bun run daily`).
 
@@ -115,5 +118,5 @@ Streaming CSV parser (`csv-parse` async iterator), so the daily file is processe
 
 ## Roadmap
 
-- Have `load-prices` (or a sibling script) also pull the **partial day-of** prices file so the frontend's "today" filter has data without waiting until tomorrow's ingestion.
-- Server-side `daily_compliance` rollup so the frontend can drop its client-side compliance computation.
+- Have `load-prices` (or a sibling script) also pull the **partial day-of** prices file so users can see "today so far" without waiting until tomorrow's ingestion.
+- A built-in multi-date backfill wrapper. Currently you loop `--date` calls in your shell.

@@ -57,6 +57,58 @@
         <div id="list-rows" class="list-rows" role="list"></div>
         <div id="list-footer" class="list-footer" hidden></div>
       </aside>
+      <div
+        id="info-modal"
+        class="info-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="info-modal-title"
+        hidden
+      >
+        <div class="info-modal__backdrop" data-info-close></div>
+        <div class="info-modal__panel">
+          <header class="info-modal__header">
+            <h2 id="info-modal-title">Informationen</h2>
+            <button
+              class="info-modal__close"
+              type="button"
+              aria-label="Schließen"
+              data-info-close
+            >×</button>
+          </header>
+          <div class="info-modal__body">
+            <section class="info-section">
+              <h3>Datenquelle &amp; Lizenz</h3>
+              <p>
+                Die Tankstellen- und Preisdaten stammen von
+                <a href="https://creativecommons.tankerkoenig.de/" target="_blank" rel="noreferrer noopener">Tankerkönig</a>
+                und stehen unter der Lizenz
+                <a href="https://creativecommons.org/licenses/by/4.0/deed.de" target="_blank" rel="noreferrer noopener">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a>.
+              </p>
+              <p>
+                Namensnennung: „Tankstellen- und Preisdaten von
+                <a href="https://creativecommons.tankerkoenig.de/" target="_blank" rel="noreferrer noopener">Tankerkönig</a>,
+                lizenziert unter
+                <a href="https://creativecommons.org/licenses/by/4.0/deed.de" target="_blank" rel="noreferrer noopener">CC BY 4.0</a>.“
+              </p>
+              <p class="info-muted">
+                Hinweis: Die Daten werden auf dieser Seite ausschließlich aufbereitet und ohne
+                Anspruch auf Vollständigkeit oder Richtigkeit dargestellt. Es findet keine
+                Endorsement-Beziehung zu Tankerkönig statt.
+              </p>
+              <p class="info-muted">
+                Kartendaten: ©
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer noopener">OpenStreetMap</a>-Mitwirkende,
+                Kartenstil: <a href="https://openfreemap.org/" target="_blank" rel="noreferrer noopener">OpenFreeMap</a>.
+              </p>
+            </section>
+            <section class="info-section">
+              <h3>Impressum</h3>
+              <pre id="info-impressum" class="info-impressum">lädt…</pre>
+            </section>
+          </div>
+        </div>
+      </div>
       <aside id="sheet" class="sheet" hidden>
         <div class="sheet-handle" aria-hidden="true"></div>
         <div class="sheet-content"></div>

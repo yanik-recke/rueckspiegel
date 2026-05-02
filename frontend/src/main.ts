@@ -9,6 +9,7 @@ import {
 } from "./supabase";
 import { hideSheet, setStationIncreases, showStation } from "./sheet";
 import { mountList } from "./list";
+import { mountInfoModal } from "./info";
 import { parsePointHex } from "./wkb";
 
 const mapEl = document.getElementById("map");
@@ -20,6 +21,8 @@ map.on("click", () => hideSheet());
 const stationsByDate = new Map<string, Station[]>();
 let allStationRows: StationRow[] | null = null;
 let activeDate: string | null = null;
+
+mountInfoModal();
 
 const list = mountList({
   map,

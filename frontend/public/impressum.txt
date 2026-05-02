@@ -1,0 +1,19 @@
+Impressum
+
+Angaben gemäß § 5 TMG
+
+[Name]
+[Straße und Hausnummer]
+[PLZ Ort]
+
+Kontakt
+E-Mail: [adresse@example.com]
+
+Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV
+[Name]
+[Adresse wie oben]
+
+Haftung für Inhalte
+Die Inhalte dieser Seite werden mit größtmöglicher Sorgfalt erstellt. Für die
+Richtigkeit, Vollständigkeit und Aktualität der Inhalte kann jedoch keine
+Gewähr übernommen werden.

@@ -255,7 +255,10 @@ function isNoonBerlin(iso: string): boolean {
   return get("hour") === "12" && get("minute") === "00" && get("second") === "00";
 }
 
-function pillMarkup(date: string, opts: { active?: boolean } = {}): string {
+function pillMarkup(
+  date: string,
+  opts: { active?: boolean; hasMenu?: boolean } = {},
+): string {
   const today = berlinDateFmt.format(new Date());
   const yesterday = berlinDateFmt.format(new Date(Date.now() - 24 * 60 * 60 * 1000));
   const [, mm, dd] = date.split("-");
@@ -264,11 +267,15 @@ function pillMarkup(date: string, opts: { active?: boolean } = {}): string {
   if (date === today) sublabel = "Heute";
   else if (date === yesterday) sublabel = "Gestern";
   else sublabel = berlinWeekdayFmt.format(probe);
+  const menuAttrs = opts.hasMenu
+    ? `aria-haspopup="true" aria-expanded="false"`
+    : "";
   return `
     <button
       class="day-pill${opts.active ? " day-pill--active" : ""}"
       data-date="${date}"
       aria-pressed="${opts.active ? "true" : "false"}"
+      ${menuAttrs}
     >
       <span class="day-pill__date">${dd}.${mm}.</span>
       <span class="day-pill__sub">${sublabel}</span>
@@ -285,10 +292,9 @@ function renderDayPills(dates: string[], active: string | null) {
   }
   const activeDateStr = active ?? dates[0];
   const others = dates.filter((d) => d !== activeDateStr);
-  const moreButton =
+  const popoverMarkup =
     others.length > 0
-      ? `<button class="day-more" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Weitere Tage">…</button>
-         <div class="day-popover" role="menu" hidden>
+      ? `<div class="day-popover" role="menu" hidden>
            ${others.map((d) => `
              <button class="day-popover__item" role="menuitem" data-date="${d}">
                ${pillItemLabel(d)}
@@ -298,27 +304,24 @@ function renderDayPills(dates: string[], active: string | null) {
       : "";
 
   nav.innerHTML = `
-    ${pillMarkup(activeDateStr, { active: true })}
-    ${moreButton}
+    ${pillMarkup(activeDateStr, { active: true, hasMenu: others.length > 0 })}
+    ${popoverMarkup}
   `;
 
-  // Active pill: clicking does nothing (already selected) but keeps the affordance.
-  // Switching happens via the popover.
-
-  const moreBtn = nav.querySelector<HTMLButtonElement>(".day-more");
+  const triggerBtn = nav.querySelector<HTMLButtonElement>(".day-pill");
   const popover = nav.querySelector<HTMLDivElement>(".day-popover");
-  if (moreBtn && popover) {
-    moreBtn.addEventListener("click", (e) => {
+  if (triggerBtn && popover) {
+    triggerBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       const willShow = popover.hidden;
       popover.hidden = !willShow;
-      moreBtn.setAttribute("aria-expanded", willShow ? "true" : "false");
+      triggerBtn.setAttribute("aria-expanded", willShow ? "true" : "false");
     });
     popover.querySelectorAll<HTMLButtonElement>(".day-popover__item").forEach((item) => {
       item.addEventListener("click", () => {
         const d = item.dataset.date;
         popover.hidden = true;
-        moreBtn.setAttribute("aria-expanded", "false");
+        triggerBtn.setAttribute("aria-expanded", "false");
         if (!d || d === activeDate) return;
         void selectDate(d, dates);
       });
@@ -341,19 +344,19 @@ function pillItemLabel(date: string): string {
 // Close popover on outside click / Escape.
 document.addEventListener("click", (e) => {
   const popover = document.querySelector<HTMLDivElement>(".day-popover");
-  const moreBtn = document.querySelector<HTMLButtonElement>(".day-more");
+  const triggerBtn = document.querySelector<HTMLButtonElement>("#day-selector .day-pill");
   if (!popover || popover.hidden) return;
-  if (e.target instanceof Node && (popover.contains(e.target) || moreBtn?.contains(e.target))) return;
+  if (e.target instanceof Node && (popover.contains(e.target) || triggerBtn?.contains(e.target))) return;
   popover.hidden = true;
-  moreBtn?.setAttribute("aria-expanded", "false");
+  triggerBtn?.setAttribute("aria-expanded", "false");
 });
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   const popover = document.querySelector<HTMLDivElement>(".day-popover");
-  const moreBtn = document.querySelector<HTMLButtonElement>(".day-more");
+  const triggerBtn = document.querySelector<HTMLButtonElement>("#day-selector .day-pill");
   if (popover && !popover.hidden) {
     popover.hidden = true;
-    moreBtn?.setAttribute("aria-expanded", "false");
+    triggerBtn?.setAttribute("aria-expanded", "false");
     return;
   }
   if (list.isOpen()) list.close();

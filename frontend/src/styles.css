@@ -136,7 +136,7 @@ body {
   color: var(--text-muted);
 }
 
-.day-more {
+.info-toggle {
   flex: none;
   width: 2.5rem;
   height: 2.6rem;
@@ -153,16 +153,16 @@ body {
   transition: background 120ms ease, border-color 120ms ease;
 }
 
-.day-more:hover {
+.info-toggle:hover {
   background: var(--surface);
 }
 
-.day-more:focus-visible {
+.info-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
-.day-more[aria-expanded="true"] {
+.day-pill[aria-expanded="true"] {
   border-color: var(--accent);
   background: var(--surface);
 }

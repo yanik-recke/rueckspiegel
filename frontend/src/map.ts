@@ -6,7 +6,14 @@ const GERMANY_CENTER: [number, number] = [10.4515, 51.1657];
 
 const SOURCE_ID = "stations";
 const LAYER_ID = "stations-circle";
+const SELECTED_SOURCE_ID = "stations-selected";
+const SELECTED_LAYER_ID = "stations-selected-halo";
 const MIN_ZOOM = 8;
+
+const EMPTY_FC: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+  type: "FeatureCollection",
+  features: [],
+};
 
 export function createMap(container: HTMLElement): MLMap {
   const map = new maplibregl.Map({
@@ -30,6 +37,25 @@ export function createMap(container: HTMLElement): MLMap {
   );
 
   return map;
+}
+
+export function setSelectedStation(map: MLMap, station: Station | null): void {
+  const src = map.getSource(SELECTED_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+  if (!src) return;
+  if (!station) {
+    src.setData(EMPTY_FC);
+    return;
+  }
+  src.setData({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [station.lng, station.lat] },
+        properties: { id: station.id },
+      },
+    ],
+  });
 }
 
 export function flyToStation(map: MLMap, s: Station): void {
@@ -69,6 +95,31 @@ export function renderStations(
   }
 
   map.addSource(SOURCE_ID, { type: "geojson", data });
+  map.addSource(SELECTED_SOURCE_ID, { type: "geojson", data: EMPTY_FC });
+
+  map.addLayer({
+    id: SELECTED_LAYER_ID,
+    type: "circle",
+    source: SELECTED_SOURCE_ID,
+    minzoom: MIN_ZOOM,
+    paint: {
+      "circle-radius": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        MIN_ZOOM,
+        14,
+        14,
+        24,
+      ],
+      "circle-color": "#000000",
+      "circle-opacity": 0.1,
+      "circle-blur": 0.6,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#000000",
+      "circle-stroke-opacity": 0.5,
+    },
+  });
 
   map.addLayer({
     id: LAYER_ID,

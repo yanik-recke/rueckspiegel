@@ -1,4 +1,4 @@
-import { createMap, renderStations } from "./map";
+import { createMap, renderStations, setSelectedStation } from "./map";
 import {
   supabase,
   type DailyComplianceRow,
@@ -16,7 +16,10 @@ const mapEl = document.getElementById("map");
 if (!(mapEl instanceof HTMLElement)) throw new Error("#map missing");
 
 const map = createMap(mapEl);
-map.on("click", () => hideSheet());
+map.on("click", () => {
+  hideSheet();
+  setSelectedStation(map, null);
+});
 
 const stationsByDate = new Map<string, Station[]>();
 let allStationRows: StationRow[] | null = null;
@@ -45,6 +48,7 @@ async function selectDate(date: string, dates: string[]) {
   activeDate = date;
   renderDayPills(dates, date);
   hideSheet();
+  setSelectedStation(map, null);
 
   let stations = stationsByDate.get(date);
   if (!stations) {
@@ -58,6 +62,7 @@ async function selectDate(date: string, dates: string[]) {
 }
 
 async function onStationClick(station: Station, date: string) {
+  setSelectedStation(map, station);
   showStation(station, { increasesPending: true });
   const increases = await fetchStationIncreases(station.id, date);
   setStationIncreases(station.id, increases, station.is_compliant);

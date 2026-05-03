@@ -154,20 +154,41 @@ async function fetchStationIncreases(
   date: string,
 ): Promise<PriceIncrease[]> {
   const { startISO, endISO } = berlinDayBoundsForDate(date);
-  const { data, error } = await supabase
-    .from("price_changes")
-    .select("id, station_id, price_e5, price_e10, price_diesel, created_at")
-    .eq("station_id", stationId)
-    .gte("created_at", startISO)
-    .lt("created_at", endISO)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
-  if (error) {
-    console.error("[price_changes] per-station fetch failed", error);
+  const prevDate = previousDate(date);
+  const [history, seed] = await Promise.all([
+    supabase
+      .from("price_changes")
+      .select("id, station_id, price_e5, price_e10, price_diesel, created_at")
+      .eq("station_id", stationId)
+      .gte("created_at", startISO)
+      .lt("created_at", endISO)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }),
+    supabase
+      .from("daily_compliance")
+      .select("price_e5")
+      .eq("station_id", stationId)
+      .eq("date", prevDate)
+      .maybeSingle(),
+  ]);
+  if (history.error) {
+    console.error("[price_changes] per-station fetch failed", history.error);
     return [];
   }
-  const { increases } = computeCompliance((data ?? []) as PriceChangeRow[]);
+  // Prior-day seed is best-effort — if it fails or is missing we fall back to
+  // first-row-as-baseline, matching the pre-seed behavior.
+  const seedE5 = seed.error ? null : seed.data?.price_e5 ?? null;
+  const { increases } = computeCompliance(
+    (history.data ?? []) as PriceChangeRow[],
+    seedE5,
+  );
   return increases;
+}
+
+function previousDate(date: string): string {
+  const [yy, mm, dd] = date.split("-").map(Number);
+  const prev = new Date(Date.UTC(yy, mm - 1, dd - 1));
+  return prev.toISOString().slice(0, 10);
 }
 
 // MTSK rule allows one daily increase (conventionally at noon). We use a peak-based
@@ -176,15 +197,23 @@ async function fetchStationIncreases(
 // to the same level (e.g. a station bumps to 2.149 at 12:02, drops to 1.979 at 12:07,
 // returns to 2.149 at 12:09 — that's one daily step up, not two).
 //
+// `seedE5` is the prior day's closing E5 price (from `daily_compliance.price_e5`).
+// The tankerkoenig CSV only contains change events, so a station with a quiet morning
+// has its noon raise as the first row of the day — without the seed, that raise would
+// be silently treated as the baseline. Mirror of the SQL `recompute_daily_compliance`.
+//
 // Only price_e5 is considered (the canonical fuel for the rule). Null prices are skipped
 // rather than treated as 0, which would fabricate increases out of "no information".
-function computeCompliance(history: PriceChangeRow[]): {
+function computeCompliance(
+  history: PriceChangeRow[],
+  seedE5: number | null = null,
+): {
   increases: PriceIncrease[];
   is_compliant: boolean;
 } {
   const increases: PriceIncrease[] = [];
-  let prev: number | null = null;
-  let dayHigh: number | null = null;
+  let prev: number | null = seedE5;
+  let dayHigh: number | null = seedE5;
   for (const row of history) {
     const curr = row.price_e5;
     if (curr == null) continue;

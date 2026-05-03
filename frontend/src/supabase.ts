@@ -35,7 +35,6 @@ export type PriceIncrease = {
   at: string;
   from_e5: number;
   to_e5: number;
-  violates: boolean;
 };
 
 export type Station = {

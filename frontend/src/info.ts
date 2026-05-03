@@ -1,4 +1,5 @@
 const IMPRESSUM_URL = "/impressum.txt";
+const DISCLAIMER_STORAGE_KEY = "ruckspiegel.disclaimer.v1";
 
 let impressumLoaded = false;
 
@@ -16,6 +17,35 @@ export function mountInfoModal(): void {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !modal.hidden) close();
+  });
+
+  mountDisclaimerModal();
+}
+
+function mountDisclaimerModal(): void {
+  const modal = document.getElementById("disclaimer-modal");
+  const accept = document.getElementById("disclaimer-accept");
+  if (!modal || !accept) return;
+
+  let accepted = false;
+  try {
+    accepted = localStorage.getItem(DISCLAIMER_STORAGE_KEY) === "1";
+  } catch {
+    // localStorage unavailable (private mode etc.) — show every time, that's fine.
+  }
+  if (accepted) return;
+
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+
+  accept.addEventListener("click", () => {
+    modal.hidden = true;
+    document.body.classList.remove("modal-open");
+    try {
+      localStorage.setItem(DISCLAIMER_STORAGE_KEY, "1");
+    } catch {
+      // ignore
+    }
   });
 }
 

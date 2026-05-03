@@ -193,33 +193,14 @@ function computeCompliance(history: PriceChangeRow[]): {
         at: row.created_at,
         from_e5: prev,
         to_e5: curr,
-        violates: false,
       });
     }
     if (dayHigh == null || curr > dayHigh) dayHigh = curr;
     prev = curr;
   }
 
-  const isCompliant = increases.length <= 1;
-  if (!isCompliant) {
-    for (const inc of increases) {
-      if (!isNoonBerlin(inc.at)) inc.violates = true;
-    }
-    if (increases.every((i) => !i.violates)) {
-      for (const inc of increases) inc.violates = true;
-    }
-  }
-
-  return { increases, is_compliant: isCompliant };
+  return { increases, is_compliant: increases.length <= 1 };
 }
-
-const berlinHourFmt = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/Berlin",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
 
 const berlinDateFmt = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Berlin",
@@ -255,12 +236,6 @@ function berlinDayBoundsForDate(date: string): { startISO: string; endISO: strin
     startISO: `${date}T00:00:00${offset}`,
     endISO: `${nextDate}T00:00:00${offset}`,
   };
-}
-
-function isNoonBerlin(iso: string): boolean {
-  const parts = berlinHourFmt.formatToParts(new Date(iso));
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return get("hour") === "12" && get("minute") === "00" && get("second") === "00";
 }
 
 function pillMarkup(

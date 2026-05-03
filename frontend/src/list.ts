@@ -149,7 +149,7 @@ export function mountList(opts: MountOptions): ListController {
 function rowMarkup(s: Station): string {
   const cls = s.is_compliant ? "list-row__dot--ok" : "list-row__dot--bad";
   const meta = [s.brand, s.street, s.postcode].filter(Boolean).map(escape).join(" · ");
-  const badge = s.increases_count > 0
+  const badge = !s.is_compliant
     ? `<span class="list-row__badge">${s.increases_count}</span>`
     : "";
   return `

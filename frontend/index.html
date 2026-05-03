@@ -15,7 +15,7 @@
       <header class="topbar">
         <div class="topbar-title">
           <h1>Rückspiegel</h1>
-          <span class="subtitle">Tankstellen-Compliance</span>
+          <span class="subtitle">Preisänderungen bei Tankstellen</span>
         </div>
         <nav id="day-selector" class="day-selector" aria-label="Tag wählen"></nav>
         <button
@@ -50,7 +50,7 @@
           />
           <label class="list-filter">
             <input id="list-only-violations" type="checkbox" />
-            <span>Nur Verstöße</span>
+            <span>Nur mit mehreren Erhöhungen</span>
           </label>
           <button id="list-close" class="list-close" type="button" aria-label="Schließen">×</button>
         </div>
@@ -77,6 +77,22 @@
             >×</button>
           </header>
           <div class="info-modal__body">
+            <section class="info-section">
+              <h3>Hinweis zu den Daten</h3>
+              <p>
+                Diese Seite zeigt aufbereitete Preisänderungen deutscher Tankstellen.
+                Die Daten werden ohne Gewähr auf Vollständigkeit oder Richtigkeit dargestellt.
+                Aufgrund von Datenlücken, Meldeverzögerungen oder fehlerhaften Meldungen
+                können angezeigte Preisänderungen von der tatsächlichen Preisentwicklung
+                an der Zapfsäule abweichen.
+              </p>
+              <p>
+                Die Anzahl der angezeigten Preiserhöhungen pro Tag ist eine rein
+                deskriptive Auswertung der vorliegenden Datenpunkte. Es wird damit
+                <strong>keine Aussage</strong> darüber getroffen, ob eine Tankstelle
+                gegen gesetzliche oder kartellrechtliche Vorgaben verstoßen hat.
+              </p>
+            </section>
             <section class="info-section">
               <h3>Datenquelle &amp; Lizenz</h3>
               <p>
@@ -107,6 +123,46 @@
               <pre id="info-impressum" class="info-impressum">lädt…</pre>
             </section>
           </div>
+        </div>
+      </div>
+      <div
+        id="disclaimer-modal"
+        class="info-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="disclaimer-modal-title"
+        hidden
+      >
+        <div class="info-modal__backdrop"></div>
+        <div class="info-modal__panel info-modal__panel--compact">
+          <header class="info-modal__header">
+            <h2 id="disclaimer-modal-title">Hinweis zu den Daten</h2>
+          </header>
+          <div class="info-modal__body">
+            <section class="info-section">
+              <p>
+                Rückspiegel zeigt Preisänderungen deutscher Tankstellen auf Basis öffentlich
+                verfügbarer Daten von Tankerkönig.
+              </p>
+              <p>
+                Die Daten werden <strong>ohne Gewähr auf Vollständigkeit oder Richtigkeit</strong>
+                dargestellt. Aufgrund von Datenlücken, Meldeverzögerungen oder fehlerhaften
+                Meldungen können angezeigte Preisänderungen von der tatsächlichen
+                Preisentwicklung abweichen.
+              </p>
+              <p>
+                Die Anzahl angezeigter Preiserhöhungen pro Tag ist eine deskriptive Auswertung
+                der vorliegenden Datenpunkte. Es wird damit <strong>keine Aussage</strong>
+                darüber getroffen, ob eine Tankstelle gegen gesetzliche oder kartellrechtliche
+                Vorgaben verstoßen hat.
+              </p>
+            </section>
+          </div>
+          <footer class="info-modal__footer">
+            <button id="disclaimer-accept" class="info-modal__primary" type="button">
+              Verstanden
+            </button>
+          </footer>
         </div>
       </div>
       <aside id="sheet" class="sheet" hidden>

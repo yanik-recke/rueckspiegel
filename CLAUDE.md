@@ -99,7 +99,8 @@ Recommended schedule: ~03:00 Europe/Berlin (yesterday's CSV is published by then
 
 ## Conventions / preferences observed
 - User wants **minimal, modern, mobile-first** UI — no over-engineering, no premature abstractions.
-- German UI labels in the sheet (Konform / Nicht konform / Verstoß / etc.).
+- German UI labels in the sheet. Wording is deliberately neutral/descriptive ("1 Preiserhöhung" / "Mehrere Preiserhöhungen", "An diesem Tag wurden N Preiserhöhungen erfasst") to avoid implying a station broke the law — observed sparse/flickery data could otherwise produce false accusations. The terms "Verstoß", "Konform", "Regel verletzt" must NOT appear in user-facing strings. Internal identifiers like `is_compliant`, `violates` may stay.
+- First-visit disclaimer modal (`#disclaimer-modal`) gated by `localStorage["ruckspiegel.disclaimer.v1"]`. Same content is also permanently available in the info modal under "Hinweis zu den Daten".
 - Comments are sparse; only used where the *why* is non-obvious (e.g. the schema-rule citation in `computeCompliance`).
 - The frontend deliberately avoids depending on a custom Supabase RPC — earlier scaffold had `stations_with_status()` but it was dropped after the user asked to use the schema as-is.
 

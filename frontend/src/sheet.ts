@@ -13,15 +13,17 @@ export function showStation(station: Station, opts: { increasesPending?: boolean
     ? `<div id="sheet-increases" class="sheet-increases sheet-increases--loading">lädt…</div>`
     : `<div id="sheet-increases" class="sheet-increases">${renderIncreases([], station.is_compliant)}</div>`;
 
+  const statusLabel =
+    station.increases_count >= 2
+      ? "Mehrere Preiserhöhungen"
+      : station.increases_count === 1
+        ? "1 Preiserhöhung"
+        : "Keine Preiserhöhung";
   content.innerHTML = `
     <div class="status status-${station.is_compliant ? "ok" : "bad"}">
       <span class="dot"></span>
-      <span class="status-label">
-        ${station.is_compliant ? "Konform" : "Nicht konform"}
-      </span>
-      <span class="status-meta">${station.increases_count} Erhöhung${
-        station.increases_count === 1 ? "" : "en"
-      }</span>
+      <span class="status-label">${statusLabel}</span>
+      <span class="status-meta">heute erfasst</span>
     </div>
     <h2>${escape(station.name)}</h2>
     <div class="meta">${[station.brand, station.street, station.postcode]
@@ -56,32 +58,29 @@ export function hideSheet() {
   currentStationId = null;
 }
 
-function renderIncreases(increases: PriceIncrease[], compliant: boolean): string {
+function renderIncreases(increases: PriceIncrease[], _compliant: boolean): string {
   if (increases.length === 0) {
-    return `<div class="rule-note">Keine Preiserhöhungen an diesem Tag.</div>`;
+    return `<div class="rule-note">Keine Preiserhöhungen an diesem Tag erfasst.</div>`;
   }
   const rows = increases
     .map((inc) => {
       const delta = ((inc.to_e5 - inc.from_e5) / 1000).toFixed(3);
       return `
-        <li class="${inc.violates ? "violates" : ""}">
+        <li>
           <span class="time">${formatTime(inc.at)}</span>
           <span class="delta">€${(inc.from_e5 / 1000).toFixed(3)} → €${(
             inc.to_e5 / 1000
           ).toFixed(3)} <em>(+€${delta})</em></span>
-          ${inc.violates ? '<span class="flag">Verstoß</span>' : ""}
         </li>`;
     })
     .join("");
+  const count = increases.length;
   return `
-    <h3 class="section-title">Preiserhöhungen</h3>
+    <h3 class="section-title">Preiserhöhungen (E5)</h3>
     <ul class="increases">${rows}</ul>
     <div class="rule-note">
-      ${
-        compliant
-          ? "Regel: höchstens eine Preiserhöhung pro Tag."
-          : "Regel verletzt: mehr als eine Preiserhöhung pro Tag."
-      }
+      An diesem Tag ${count === 1 ? "wurde 1 Preiserhöhung" : `wurden ${count} Preiserhöhungen`} für E5 erfasst.
+      Daten ohne Gewähr.
     </div>
   `;
 }

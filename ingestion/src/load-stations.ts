@@ -4,13 +4,6 @@ import { fetchCsvText, log, requireEnv, requireSupabase, yesterdayBerlin } from 
 const TK_USER = requireEnv("TK_USER");
 const TK_PASS = requireEnv("TK_PASS");
 
-// Potential Mock IDs
-const MOCK_IDS = [
-  "11111111-1111-1111-1111-111111111111",
-  "22222222-2222-2222-2222-222222222222",
-  "33333333-3333-3333-3333-333333333333",
-];
-
 type Row = {
   uuid: string;
   name: string;
@@ -88,14 +81,6 @@ async function main() {
   log.info(`prepared ${records.length.toLocaleString()} valid records`);
 
   const supabase = requireSupabase();
-
-  log.info(`deleting mock stations (${MOCK_IDS.length} known UUIDs)…`);
-  const { error: delErr, count: delCount } = await supabase
-    .from("stations")
-    .delete({ count: "exact" })
-    .in("id", MOCK_IDS);
-  if (delErr) throw new Error(`mock delete failed: ${delErr.message}`);
-  log.info(`removed ${delCount ?? 0} mock station(s)`);
 
   const BATCH = 1000;
   const totalBatches = Math.ceil(records.length / BATCH);

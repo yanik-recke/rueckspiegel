@@ -58,6 +58,20 @@ export function setSelectedStation(map: MLMap, station: Station | null): void {
   });
 }
 
+export type Bbox = { minLng: number; minLat: number; maxLng: number; maxLat: number };
+
+export function getViewportBbox(map: MLMap): Bbox {
+  const b = map.getBounds();
+  return {
+    minLng: b.getWest(),
+    minLat: b.getSouth(),
+    maxLng: b.getEast(),
+    maxLat: b.getNorth(),
+  };
+}
+
+export const STATIONS_MIN_ZOOM = MIN_ZOOM;
+
 export function flyToStation(map: MLMap, s: Station): void {
   const h = map.getContainer().clientHeight;
   // On mobile the bottom sheet covers ~60vh; offset the camera so the station

@@ -52,6 +52,21 @@ export type Station = {
   price_diesel: number | null;
 };
 
+export type BboxStationRow = {
+  id: string;
+  name: string;
+  brand: string | null;
+  street: string | null;
+  postcode: string | null;
+  lng: number;
+  lat: number;
+  is_compliant: boolean;
+  increases_count: number;
+  price_e5: number | null;
+  price_e10: number | null;
+  price_diesel: number | null;
+};
+
 export type DailyComplianceRow = {
   station_id: string;
   increases_count: number;

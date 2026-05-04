@@ -36,15 +36,16 @@ An "increase" is **peak-based**: `price_e5` going up vs. the previous non-null r
 Why we relaxed: with sparse event data (often just 2–10 rows/day), we can't pin the timing of an increase to noon precisely; and MTSK regularly records flicker patterns that look like 2 events but represent one. The peak-based + "≤1 ⇒ compliant" combination matches the rule's intent ("the station never charged more than the daily allowed step up") and aligns with what ADAC appears to show.
 
 ## Frontend architecture
-- `src/main.ts` — entry. Calls the `available_dates(5)` RPC for the day-selector, renders pills, defaults to the most recent. For the active date: paginates `stations` once (cached for the session) and `daily_compliance` filtered by date (~16k rows, 16 pages), merges into `Station[]`, hands them to the map. Day switches reuse a `Map<date, Station[]>` cache so revisits are instant. Per-station click triggers a small lazy fetch of `price_changes` for that station + date, runs `computeCompliance` (peak-based rule) on the result, and fills in the sheet's increase log via `setStationIncreases`.
-- `src/map.ts` — MapLibre setup. Stations render as a single GeoJSON source + `circle` layer (`stations-circle`), data-driven color from `is_compliant` (green/red). `minzoom = 8` so dots only appear once cities are visible; radius interpolates with zoom. Click handler attached to the layer (no per-marker DOM). Centers on Germany (`[10.4515, 51.1657]`, zoom 5.4).
+- `src/main.ts` — entry. Calls the `available_dates(5)` RPC for the day-selector, renders pills, defaults to the most recent. **Stations are loaded viewport-first**, not all-at-once: a debounced `moveend` handler calls the `stations_in_bbox(min_lng, min_lat, max_lng, max_lat, target_date)` RPC (defined in `db/migration_003_stations_in_bbox.md`) for the current map bounds (padded ~10%) whenever the user is zoomed at or above `minzoom = 8`. Below zoom 8 no fetch happens since dots aren't rendered anyway, so the cold-start of the app issues only the `available_dates` call. State is held in `stationsByDate: Map<date, Map<station_id, Station>>` so re-pans over loaded tiles don't refetch (covered-bbox check) and day switches reuse the per-date map. Per-station click triggers a small lazy fetch of `price_changes` for that station + date, runs `computeCompliance` (peak-based rule) on the result, and fills in the sheet's increase log via `setStationIncreases`.
+- **List view (hamburger) lazy full-load.** The list panel needs every station for free-text search, so `mountList` accepts an `ensureLoaded` callback. The first time the user opens the list for a given date, `loadAllForDate(date)` runs the original paginated fetches (`stations` once, `daily_compliance` per date) and merges into the same `stationsByDate` map — the map view immediately benefits too. A "Lade Stationen…" placeholder with a spinner shows during the wait. `fullyLoadedDates: Set<date>` short-circuits subsequent opens; once a date is fully loaded, `moveend` skips its bbox fetches entirely.
+- `src/map.ts` — MapLibre setup. Stations render as a single GeoJSON source + `circle` layer (`stations-circle`), data-driven color from `is_compliant` (green/red). `minzoom = 8` (re-exported as `STATIONS_MIN_ZOOM` so `main.ts` can gate bbox fetches by it); radius interpolates with zoom. Click handler attached to the layer (no per-marker DOM). Centers on Germany (`[10.4515, 51.1657]`, zoom 5.4). Also exports `getViewportBbox(map)` and a `Bbox` type used by the bbox loader.
 - `src/sheet.ts` — info panel showing status badge, current prices (E5/E10/Diesel), and the day's price-increase log with violators flagged.
-- `src/supabase.ts` — client + types (`StationRow`, `PriceChangeRow`, `Station`, `PriceIncrease`).
-- `src/wkb.ts` — minimal EWKB-hex POINT parser (handles SRID flag + endianness).
+- `src/supabase.ts` — client + types (`StationRow`, `PriceChangeRow`, `Station`, `PriceIncrease`, `BboxStationRow`).
+- `src/wkb.ts` — minimal EWKB-hex POINT parser (handles SRID flag + endianness). Used only by the lazy list-view full-load path; the bbox RPC returns numeric `lng`/`lat` directly so the map view never touches WKB.
 - `src/styles.css` — design tokens at the top (`--bg`, `--surface`, `--accent`, `--bad`, etc.). Dark theme.
 
 ### Pagination + 1000-row cap
-PostgREST caps any single `select` response at 1000 rows. `loadAllStationRows` and `loadComplianceForDate` in `main.ts` loop `.range(from, from + 999)` until a short page comes back. Any new full-table fetch must paginate the same way — a plain `.select()` will silently truncate.
+PostgREST caps any single `select` response at 1000 rows. `loadAllStationRows` and `loadComplianceForDate` in `main.ts` (used by the lazy full-load path triggered from the list view) loop `.range(from, from + 999)` until a short page comes back. Any new full-table fetch must paginate the same way — a plain `.select()` will silently truncate. The `stations_in_bbox` RPC is exempt — it returns at most a viewport's worth of rows, far below 1000 in practice.
 
 ### Day selector
 `#day-selector` in the topbar holds the active-date pill plus a `…` more-button (rendered only when more than one date exists in `available_dates(5)`). Clicking `…` opens a `.day-popover` (`role="menu"`, anchored right) listing the other available dates with `DD.MM.` + a sublabel (`Heute` / `Gestern` / weekday short name). Selecting a date closes the popover, switches `activeDate`, reloads (or pulls from cache), and re-renders the map source. Outside-click or `Escape` closes the popover. The sheet hides on day switch — we don't carry station selection across days.
@@ -93,9 +94,10 @@ Recommended schedule: ~03:00 Europe/Berlin (yesterday's CSV is published by then
 ## Supabase setup (must be done in dashboard for the frontend to work)
 1. **Enable PostGIS:** `CREATE EXTENSION IF NOT EXISTS postgis;`
 2. **Run schema** from `db/gas_station_schema.md`.
-3. **Seed mock data** from `db/mock_data.md`.
-4. **Enable RLS** on all three tables, add `select` policies for `anon, authenticated using (true)`. No write policies — ingestion uses the service-role key (server-side only).
-5. **Frontend `.env`** (in `frontend/`): copy from `.env.example`, fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Note: Supabase rebranded API keys — the **publishable / "default"** key (`sb_publishable_...`) is what goes in `VITE_SUPABASE_ANON_KEY`. The secret key never goes in any `VITE_*` variable.
+3. **Run migrations**: `db/migration_001_price_changes_unique.md`, `db/migration_002_daily_compliance_rollup.md`, `db/migration_003_stations_in_bbox.md` (the bbox RPC the frontend calls on `moveend`).
+4. **Seed mock data** from `db/mock_data.md`.
+5. **Enable RLS** on all three tables, add `select` policies for `anon, authenticated using (true)`. No write policies — ingestion uses the service-role key (server-side only).
+6. **Frontend `.env`** (in `frontend/`): copy from `.env.example`, fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Note: Supabase rebranded API keys — the **publishable / "default"** key (`sb_publishable_...`) is what goes in `VITE_SUPABASE_ANON_KEY`. The secret key never goes in any `VITE_*` variable.
 
 ## Conventions / preferences observed
 - User wants **minimal, modern, mobile-first** UI — no over-engineering, no premature abstractions.
@@ -108,10 +110,10 @@ Recommended schedule: ~03:00 Europe/Berlin (yesterday's CSV is published by then
 - Per-day non-compliant counts inside the day pills. Easy add now that the rollup exists — `available_dates` could be replaced by an RPC returning `(date, violator_count)`.
 - Retention / cleanup of old `daily_compliance` rows beyond a window. ~16k rows/day is fine for years, but eventually worth a delete policy.
 - Today's partial day. `load-prices` ingests yesterday's published file. If the user wants "today so far", we'd need to also pull the (live-updating) `today.csv` — separate ticket.
-- If station count grows substantially (multi-country, etc.), switch from "load all + GeoJSON layer" to a Postgres RPC like `stations_in_bbox(min_lng, min_lat, max_lng, max_lat)` (GiST-indexed) called on `moveend`. At ~16k DE stations the current approach is fine.
 - No tests yet. Worth adding once shape stabilizes.
 
 ## Gotchas hit so far
 - The harmless `WebGL warning: texImage: Alpha-premult and y-flip are deprecated` from MapLibre/Firefox can be ignored.
 - PostGIS `GEOGRAPHY` columns over PostgREST come back as hex, not GeoJSON — hence the WKB parser.
 - DST: do not check noon by adding `+2` to UTC hours. Use `Intl.DateTimeFormat` with `timeZone: "Europe/Berlin"`.
+- PostGIS lives in the `extensions` schema on Supabase. Any PL/SQL function that does `SET search_path = ''` and references PostGIS (`geometry`, `ST_X`, `ST_MakeEnvelope`, the `&&` operator…) will fail with `type "geometry" does not exist`. Either include `extensions` on the path (`SET search_path = public, extensions`) or schema-qualify everything. See `db/migration_003_stations_in_bbox.md`.

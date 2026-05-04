@@ -440,6 +440,28 @@ body {
   background: var(--surface);
 }
 
+.list-toggle.is-loading {
+  cursor: wait;
+}
+
+.list-toggle.is-loading svg {
+  display: none;
+}
+
+.list-toggle.is-loading::after {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: list-toggle-spin 700ms linear infinite;
+}
+
+@keyframes list-toggle-spin {
+  to { transform: rotate(360deg); }
+}
+
 .list-panel {
   position: fixed;
   top: var(--list-top, 0);

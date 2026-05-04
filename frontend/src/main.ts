@@ -21,6 +21,15 @@ map.on("click", () => {
   setSelectedStation(map, null);
 });
 
+const listToggleEl = document.getElementById("list-toggle");
+function setListLoading(loading: boolean) {
+  if (!listToggleEl) return;
+  listToggleEl.classList.toggle("is-loading", loading);
+  if (loading) listToggleEl.setAttribute("aria-busy", "true");
+  else listToggleEl.removeAttribute("aria-busy");
+}
+setListLoading(true);
+
 const stationsByDate = new Map<string, Station[]>();
 let allStationRows: StationRow[] | null = null;
 let activeDate: string | null = null;
@@ -36,12 +45,16 @@ const list = mountList({
 });
 
 map.once("load", async () => {
-  const dates = await loadAvailableDates(5);
-  if (dates.length === 0) {
-    renderDayPills([], null);
-    return;
+  try {
+    const dates = await loadAvailableDates(5);
+    if (dates.length === 0) {
+      renderDayPills([], null);
+      return;
+    }
+    await selectDate(dates[0], dates);
+  } finally {
+    setListLoading(false);
   }
-  await selectDate(dates[0], dates);
 });
 
 async function selectDate(date: string, dates: string[]) {

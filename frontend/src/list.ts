@@ -42,6 +42,7 @@ export function mountList(opts: MountOptions): ListController {
   let query = "";
   let onlyViolations = false;
   let debounceTimer: number | null = null;
+  let deferredRender: number | null = null;
 
   function isMobile(): boolean {
     return window.matchMedia(MOBILE_QUERY).matches;
@@ -58,7 +59,7 @@ export function mountList(opts: MountOptions): ListController {
     panel!.hidden = false;
     toggle!.setAttribute("aria-expanded", "true");
     render();
-    queueMicrotask(() => searchInput!.focus());
+    if (!isMobile()) queueMicrotask(() => searchInput!.focus());
   }
 
   function close() {
@@ -91,7 +92,19 @@ export function mountList(opts: MountOptions): ListController {
     const total = filtered.length;
     const visible = filtered.slice(0, MAX_ROWS);
 
-    rowsContainer!.innerHTML = visible.map(rowMarkup).join("");
+    if (deferredRender != null) {
+      cancelAnimationFrame(deferredRender);
+      deferredRender = null;
+    }
+
+    const FIRST_PAINT = 10;
+    rowsContainer!.innerHTML = visible.slice(0, FIRST_PAINT).map(rowMarkup).join("");
+    if (visible.length > FIRST_PAINT) {
+      deferredRender = requestAnimationFrame(() => {
+        deferredRender = null;
+        rowsContainer!.innerHTML = visible.map(rowMarkup).join("");
+      });
+    }
 
     if (total === 0) {
       footer!.hidden = false;

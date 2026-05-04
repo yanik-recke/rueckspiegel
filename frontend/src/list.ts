@@ -4,6 +4,7 @@ import type { Station } from "./supabase";
 
 const MAX_ROWS = 300;
 const MOBILE_QUERY = "(max-width: 767px)";
+const nameCollator = new Intl.Collator("de");
 
 interface MountOptions {
   map: MLMap;
@@ -58,7 +59,11 @@ export function mountList(opts: MountOptions): ListController {
     syncTopbarOffset();
     panel!.hidden = false;
     toggle!.setAttribute("aria-expanded", "true");
-    render();
+    rowsContainer!.innerHTML = "";
+    footer!.hidden = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(render);
+    });
     if (!isMobile()) queueMicrotask(() => searchInput!.focus());
   }
 
@@ -86,7 +91,7 @@ export function mountList(opts: MountOptions): ListController {
 
     filtered = filtered.slice().sort((a, b) => {
       if (a.is_compliant !== b.is_compliant) return a.is_compliant ? 1 : -1;
-      return a.name.localeCompare(b.name, "de");
+      return nameCollator.compare(a.name, b.name);
     });
 
     const total = filtered.length;

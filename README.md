@@ -2,11 +2,10 @@
 
 Live: **<https://rueckspiegel.net>**
 
-A small webapp that visualises whether German gas stations stick to the [federal price-transparency rule](https://www.bundesregierung.de/breg-en/news/measures-against-petrol-prices-2412504): one daily price increase, conventionally at noon (Europe/Berlin). Stations that look like they bumped their E5 price more than once on a given day are flagged in red on the map; the rest are green.
+A small webapp that visualises prices increases for German gas stations. 
+Currently relevant because of the [federal price-transparency rule](https://www.bundesregierung.de/breg-en/news/measures-against-petrol-prices-2412504): one daily price increase at noon (Europe/Berlin).
 
-Don't expect frequent maintenance or updates — this is a hobby project. Contributions welcome.
-
-> **Note on the rule.** Tankerkönig's published change events are sparse (often only a handful of rows per station per day), so the app uses a relaxed *peak-based* rule rather than trying to pin the moment of the increase to noon: a station is flagged only when its E5 price ratchets up to a **new daily high more than once**. Small flickers (drop + return to the same high) don't count. This errs on the side of *not* accusing stations falsely. See `CLAUDE.md` for the full rationale.
+> This project is not meant to accuse anyone of wrongdoing, just a visualization of data
 
 ## How it works
 
@@ -80,7 +79,7 @@ Attribution for all three is shown in-app (corner control + the "Hinweis zu den 
 
 ## License
 
-MIT — see `LICENSE`.
+MIT — see [LICENSE](LICENSE).
 
 ## Further reading
 

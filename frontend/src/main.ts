@@ -1,6 +1,14 @@
-import { createMap, renderStations, setSelectedStation } from "./map";
+import {
+  createMap,
+  getViewportBbox,
+  renderStations,
+  setSelectedStation,
+  STATIONS_MIN_ZOOM,
+  type Bbox,
+} from "./map";
 import {
   supabase,
+  type BboxStationRow,
   type DailyComplianceRow,
   type PriceChangeRow,
   type PriceIncrease,
@@ -30,17 +38,31 @@ function setListLoading(loading: boolean) {
 }
 setListLoading(true);
 
-const stationsByDate = new Map<string, Station[]>();
+// Per-date dedup map of stations the client has currently loaded — populated
+// incrementally by bbox fetches on moveend, and replaced wholesale once the
+// list view has triggered a full load for the date.
+const stationsByDate = new Map<string, Map<string, Station>>();
+const fullyLoadedDates = new Set<string>();
+const inflightFullLoad = new Map<string, Promise<void>>();
+// Tiles (padded bboxes) we've already fetched per date, used to skip refetches
+// when the new viewport is fully contained in something we already have.
+const loadedBboxes = new Map<string, Bbox[]>();
 let allStationRows: StationRow[] | null = null;
 let activeDate: string | null = null;
+let moveendTimer: number | null = null;
 
 mountInfoModal();
 
 const list = mountList({
   map,
-  getStations: () => (activeDate ? stationsByDate.get(activeDate) ?? [] : []),
+  getStations: () =>
+    activeDate ? Array.from(stationsByDate.get(activeDate)?.values() ?? []) : [],
   onSelect: (s) => {
     if (activeDate) void onStationClick(s, activeDate);
+  },
+  ensureLoaded: async () => {
+    if (!activeDate) return;
+    await ensureFullyLoaded(activeDate);
   },
 });
 
@@ -57,21 +79,134 @@ map.once("load", async () => {
   }
 });
 
+map.on("moveend", () => {
+  if (moveendTimer != null) window.clearTimeout(moveendTimer);
+  moveendTimer = window.setTimeout(handleViewportChange, 200);
+});
+
+async function handleViewportChange() {
+  if (!activeDate) return;
+  if (map.getZoom() < STATIONS_MIN_ZOOM) return;
+  if (fullyLoadedDates.has(activeDate)) return;
+  const bbox = padBbox(getViewportBbox(map), 0.1);
+  if (bboxAlreadyCovered(activeDate, bbox)) return;
+  await loadBboxIntoCache(activeDate, bbox);
+  if (activeDate) renderStations(map, currentStations(activeDate), (s) => onStationClick(s, activeDate!));
+}
+
 async function selectDate(date: string, dates: string[]) {
   activeDate = date;
   renderDayPills(dates, date);
   hideSheet();
   setSelectedStation(map, null);
 
-  let stations = stationsByDate.get(date);
-  if (!stations) {
-    if (!allStationRows) allStationRows = await loadAllStationRows();
-    const compliance = await loadComplianceForDate(date);
-    stations = mergeStations(allStationRows, compliance);
-    stationsByDate.set(date, stations);
-  }
-  renderStations(map, stations, (s) => onStationClick(s, date));
+  // Render whatever we have cached for this date right away (may be empty —
+  // that's fine, it bootstraps the GeoJSON source + layers so moveend handlers
+  // and selection halos can attach immediately).
+  renderStations(map, currentStations(date), (s) => onStationClick(s, date));
   list.refresh();
+
+  if (fullyLoadedDates.has(date)) return;
+  // Trigger a viewport-scoped fetch only if dots would actually be visible.
+  if (map.getZoom() >= STATIONS_MIN_ZOOM) {
+    const bbox = padBbox(getViewportBbox(map), 0.1);
+    if (!bboxAlreadyCovered(date, bbox)) {
+      await loadBboxIntoCache(date, bbox);
+      if (activeDate === date) {
+        renderStations(map, currentStations(date), (s) => onStationClick(s, date));
+        list.refresh();
+      }
+    }
+  }
+}
+
+function currentStations(date: string): Station[] {
+  return Array.from(stationsByDate.get(date)?.values() ?? []);
+}
+
+async function loadBboxIntoCache(date: string, bbox: Bbox): Promise<void> {
+  const rows = await loadStationsInBbox(date, bbox);
+  const target = stationsByDate.get(date) ?? new Map<string, Station>();
+  for (const r of rows) {
+    target.set(r.id, {
+      id: r.id,
+      name: r.name,
+      brand: r.brand,
+      street: r.street,
+      postcode: r.postcode,
+      lng: r.lng,
+      lat: r.lat,
+      is_compliant: r.is_compliant,
+      increases_count: r.increases_count,
+      price_e5: r.price_e5,
+      price_e10: r.price_e10,
+      price_diesel: r.price_diesel,
+    });
+  }
+  stationsByDate.set(date, target);
+  const tiles = loadedBboxes.get(date) ?? [];
+  tiles.push(bbox);
+  loadedBboxes.set(date, tiles);
+}
+
+async function loadStationsInBbox(date: string, bbox: Bbox): Promise<BboxStationRow[]> {
+  const { data, error } = await supabase.rpc("stations_in_bbox", {
+    min_lng: bbox.minLng,
+    min_lat: bbox.minLat,
+    max_lng: bbox.maxLng,
+    max_lat: bbox.maxLat,
+    target_date: date,
+  });
+  if (error) {
+    console.error("[stations_in_bbox] failed", error);
+    return [];
+  }
+  return (data ?? []) as BboxStationRow[];
+}
+
+function ensureFullyLoaded(date: string): Promise<void> {
+  if (fullyLoadedDates.has(date)) return Promise.resolve();
+  const existing = inflightFullLoad.get(date);
+  if (existing) return existing;
+  const p = loadAllForDate(date).finally(() => inflightFullLoad.delete(date));
+  inflightFullLoad.set(date, p);
+  return p;
+}
+
+async function loadAllForDate(date: string): Promise<void> {
+  if (!allStationRows) allStationRows = await loadAllStationRows();
+  const compliance = await loadComplianceForDate(date);
+  const merged = mergeStations(allStationRows, compliance);
+  const target = stationsByDate.get(date) ?? new Map<string, Station>();
+  for (const s of merged) target.set(s.id, s);
+  stationsByDate.set(date, target);
+  fullyLoadedDates.add(date);
+  if (activeDate === date) {
+    renderStations(map, currentStations(date), (s) => onStationClick(s, date));
+  }
+}
+
+function padBbox(b: Bbox, ratio: number): Bbox {
+  const dLng = (b.maxLng - b.minLng) * ratio;
+  const dLat = (b.maxLat - b.minLat) * ratio;
+  return {
+    minLng: b.minLng - dLng,
+    minLat: b.minLat - dLat,
+    maxLng: b.maxLng + dLng,
+    maxLat: b.maxLat + dLat,
+  };
+}
+
+function bboxAlreadyCovered(date: string, b: Bbox): boolean {
+  const tiles = loadedBboxes.get(date);
+  if (!tiles) return false;
+  return tiles.some(
+    (t) =>
+      t.minLng <= b.minLng &&
+      t.minLat <= b.minLat &&
+      t.maxLng >= b.maxLng &&
+      t.maxLat >= b.maxLat,
+  );
 }
 
 async function onStationClick(station: Station, date: string) {

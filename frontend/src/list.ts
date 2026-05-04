@@ -10,11 +10,12 @@ interface MountOptions {
   map: MLMap;
   getStations: () => Station[];
   onSelect: (station: Station) => void;
+  ensureLoaded?: () => Promise<void>;
 }
 
 interface ListController {
   refresh: () => void;
-  open: () => void;
+  open: () => Promise<void>;
   close: () => void;
   isOpen: () => boolean;
 }
@@ -55,16 +56,31 @@ export function mountList(opts: MountOptions): ListController {
     panel!.style.setProperty("--list-top", `${topbar.offsetHeight}px`);
   }
 
-  function open() {
+  async function open() {
     syncTopbarOffset();
     panel!.hidden = false;
     toggle!.setAttribute("aria-expanded", "true");
-    rowsContainer!.innerHTML = "";
-    footer!.hidden = true;
+    if (!isMobile()) queueMicrotask(() => searchInput!.focus());
+
+    if (opts.ensureLoaded) {
+      rowsContainer!.innerHTML = `<div class="list-empty"><span class="list-spinner" aria-hidden="true"></span><span>Lade Stationen…</span></div>`;
+      footer!.hidden = true;
+      try {
+        await opts.ensureLoaded();
+      } catch (err) {
+        console.error("[list] failed to load stations", err);
+        rowsContainer!.innerHTML = `<div class="list-empty">Konnte Stationen nicht laden.</div>`;
+        return;
+      }
+      if (panel!.hidden) return;
+    } else {
+      rowsContainer!.innerHTML = "";
+      footer!.hidden = true;
+    }
+
     requestAnimationFrame(() => {
       requestAnimationFrame(render);
     });
-    if (!isMobile()) queueMicrotask(() => searchInput!.focus());
   }
 
   function close() {
@@ -152,7 +168,7 @@ export function mountList(opts: MountOptions): ListController {
 
   toggle.addEventListener("click", () => {
     if (isOpen()) close();
-    else open();
+    else void open();
   });
 
   window.addEventListener("resize", () => {

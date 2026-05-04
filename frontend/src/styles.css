@@ -633,6 +633,25 @@ body {
   display: none;
 }
 
+.list-empty {
+  padding: 1rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.list-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: list-toggle-spin 700ms linear infinite;
+}
+
 .info-modal {
   position: fixed;
   inset: 0;

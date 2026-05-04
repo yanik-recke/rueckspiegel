@@ -79,7 +79,7 @@ Attribution for all three is shown in-app (corner control + the "Hinweis zu den 
 
 ## License
 
-MIT — see `LICENSE`.
+MIT — see [LICENSE](LICENSE).
 
 ## Further reading
 

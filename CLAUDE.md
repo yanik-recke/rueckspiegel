@@ -42,6 +42,7 @@ Why we relaxed: with sparse event data (often just 2–10 rows/day), we can't pi
 - `src/sheet.ts` — info panel showing status badge, current prices (E5/E10/Diesel), and the day's price-increase log with violators flagged.
 - `src/supabase.ts` — client + types (`StationRow`, `PriceChangeRow`, `Station`, `PriceIncrease`, `BboxStationRow`).
 - `src/wkb.ts` — minimal EWKB-hex POINT parser (handles SRID flag + endianness). Used only by the lazy list-view full-load path; the bbox RPC returns numeric `lng`/`lat` directly so the map view never touches WKB.
+- `src/i18n.ts` — DE/EN translation module. No third-party library. Exports `getLang`, `setLang`, `t`, `applyStaticTranslations`, `tTooManyResults`, `tResultCount`, `tIncreaseCountNote`. Language persists to `localStorage["ruckspiegel.lang.v1"]`; defaults to browser language (EN if `navigator.language` starts with "en", DE otherwise). `applyStaticTranslations()` walks `[data-i18n]`, `[data-i18n-placeholder]`, `[data-i18n-aria-label]` DOM attributes. A `#lang-toggle` button (between the list toggle and info toggle in the topbar) switches language in-place; `.subtitle` is hidden on mobile (`≤767px`) to avoid crowding. The Impressum and Datenschutzerklärung sections remain German-only.
 - `src/styles.css` — design tokens at the top (`--bg`, `--surface`, `--accent`, `--bad`, etc.). Dark theme.
 
 ### Pagination + 1000-row cap

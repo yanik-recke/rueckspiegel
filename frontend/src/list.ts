@@ -1,10 +1,10 @@
 import type { Map as MLMap } from "maplibre-gl";
 import { flyToStation } from "./map";
 import type { Station } from "./supabase";
+import { t, getLang, tTooManyResults, tResultCount } from "./i18n";
 
 const MAX_ROWS = 300;
 const MOBILE_QUERY = "(max-width: 767px)";
-const nameCollator = new Intl.Collator("de");
 
 interface MountOptions {
   map: MLMap;
@@ -63,13 +63,13 @@ export function mountList(opts: MountOptions): ListController {
     if (!isMobile()) queueMicrotask(() => searchInput!.focus());
 
     if (opts.ensureLoaded) {
-      rowsContainer!.innerHTML = `<div class="list-empty"><span class="list-spinner" aria-hidden="true"></span><span>Lade Stationen…</span></div>`;
+      rowsContainer!.innerHTML = `<div class="list-empty"><span class="list-spinner" aria-hidden="true"></span><span>${t("loadingStations")}</span></div>`;
       footer!.hidden = true;
       try {
         await opts.ensureLoaded();
       } catch (err) {
         console.error("[list] failed to load stations", err);
-        rowsContainer!.innerHTML = `<div class="list-empty">Konnte Stationen nicht laden.</div>`;
+        rowsContainer!.innerHTML = `<div class="list-empty">${t("loadStationsFailed")}</div>`;
         return;
       }
       if (panel!.hidden) return;
@@ -105,9 +105,10 @@ export function mountList(opts: MountOptions): ListController {
       });
     }
 
+    const collator = new Intl.Collator(getLang() === "en" ? "en" : "de");
     filtered = filtered.slice().sort((a, b) => {
       if (a.is_compliant !== b.is_compliant) return a.is_compliant ? 1 : -1;
-      return nameCollator.compare(a.name, b.name);
+      return collator.compare(a.name, b.name);
     });
 
     const total = filtered.length;
@@ -127,15 +128,13 @@ export function mountList(opts: MountOptions): ListController {
       });
     }
 
+    footer!.hidden = false;
     if (total === 0) {
-      footer!.hidden = false;
-      footer!.textContent = "Keine Treffer.";
+      footer!.textContent = t("noResults");
     } else if (total > MAX_ROWS) {
-      footer!.hidden = false;
-      footer!.textContent = `${total} Treffer — Suche verfeinern (zeige ${MAX_ROWS}).`;
+      footer!.textContent = tTooManyResults(total, MAX_ROWS);
     } else {
-      footer!.hidden = false;
-      footer!.textContent = `${total} Treffer.`;
+      footer!.textContent = tResultCount(total);
     }
   }
 

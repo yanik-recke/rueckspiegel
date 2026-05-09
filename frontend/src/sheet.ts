@@ -1,6 +1,10 @@
 import type { PriceIncrease, Station } from "./supabase";
+import { t, tIncreaseCountNote } from "./i18n";
 
 let currentStationId: string | null = null;
+let currentStation: Station | null = null;
+let currentIncreases: PriceIncrease[] | null = null;
+let currentIncreaseCompliant = true;
 
 export function showStation(station: Station, opts: { increasesPending?: boolean } = {}) {
   const sheet = document.getElementById("sheet");
@@ -8,22 +12,23 @@ export function showStation(station: Station, opts: { increasesPending?: boolean
   if (!sheet || !content) return;
 
   currentStationId = station.id;
+  currentStation = station;
 
   const increasesBlock = opts.increasesPending
-    ? `<div id="sheet-increases" class="sheet-increases sheet-increases--loading">lädt…</div>`
+    ? `<div id="sheet-increases" class="sheet-increases sheet-increases--loading">${t("loading")}</div>`
     : `<div id="sheet-increases" class="sheet-increases">${renderIncreases([], station.is_compliant)}</div>`;
 
   const statusLabel =
     station.increases_count >= 2
-      ? "Mehrere Preiserhöhungen"
+      ? t("multipleIncreases")
       : station.increases_count === 1
-        ? "1 Preiserhöhung"
-        : "Keine Preiserhöhung";
+        ? t("oneIncrease")
+        : t("noIncrease");
   content.innerHTML = `
     <div class="status status-${station.is_compliant ? "ok" : "bad"}">
       <span class="dot"></span>
       <span class="status-label">${statusLabel}</span>
-      <span class="status-meta">heute erfasst</span>
+      <span class="status-meta">${t("recordedToday")}</span>
     </div>
     <h2>${escape(station.name)}</h2>
     <div class="meta">${[station.brand, station.street, station.postcode]
@@ -46,6 +51,8 @@ export function setStationIncreases(
   compliant: boolean,
 ) {
   if (currentStationId !== stationId) return;
+  currentIncreases = increases;
+  currentIncreaseCompliant = compliant;
   const slot = document.getElementById("sheet-increases");
   if (!slot) return;
   slot.classList.remove("sheet-increases--loading");
@@ -56,11 +63,21 @@ export function hideSheet() {
   const sheet = document.getElementById("sheet");
   if (sheet) sheet.hidden = true;
   currentStationId = null;
+  currentStation = null;
+  currentIncreases = null;
+}
+
+export function rerenderSheet(): void {
+  if (!currentStation) return;
+  showStation(currentStation, { increasesPending: currentIncreases === null });
+  if (currentIncreases !== null) {
+    setStationIncreases(currentStation.id, currentIncreases, currentIncreaseCompliant);
+  }
 }
 
 function renderIncreases(increases: PriceIncrease[], _compliant: boolean): string {
   if (increases.length === 0) {
-    return `<div class="rule-note">Keine Preiserhöhungen an diesem Tag erfasst.</div>`;
+    return `<div class="rule-note">${t("noIncreasesRecorded")}</div>`;
   }
   const rows = increases
     .map((inc) => {
@@ -76,12 +93,9 @@ function renderIncreases(increases: PriceIncrease[], _compliant: boolean): strin
     .join("");
   const count = increases.length;
   return `
-    <h3 class="section-title">Preiserhöhungen (E5)</h3>
+    <h3 class="section-title">${t("sectionTitleIncreases")}</h3>
     <ul class="increases">${rows}</ul>
-    <div class="rule-note">
-      An diesem Tag ${count === 1 ? "wurde 1 Preiserhöhung" : `wurden ${count} Preiserhöhungen`} für E5 erfasst.
-      Daten ohne Gewähr.
-    </div>
+    <div class="rule-note">${tIncreaseCountNote(count)}</div>
   `;
 }
 
@@ -95,14 +109,24 @@ function priceCard(label: string, priceE5: number | null) {
   `;
 }
 
-const berlinTimeFmt = new Intl.DateTimeFormat("de-DE", {
-  timeZone: "Europe/Berlin",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+let timeFmtCache: { locale: string; fmt: Intl.DateTimeFormat } | null = null;
+function getTimeFmt(): Intl.DateTimeFormat {
+  const locale = t("timeLocale");
+  if (!timeFmtCache || timeFmtCache.locale !== locale) {
+    timeFmtCache = {
+      locale,
+      fmt: new Intl.DateTimeFormat(locale, {
+        timeZone: "Europe/Berlin",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+  }
+  return timeFmtCache.fmt;
+}
 
 function formatTime(iso: string): string {
-  return berlinTimeFmt.format(new Date(iso));
+  return getTimeFmt().format(new Date(iso));
 }
 
 function escape(s: string | null | undefined): string {

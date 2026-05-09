@@ -15,10 +15,11 @@ import {
   type Station,
   type StationRow,
 } from "./supabase";
-import { hideSheet, setStationIncreases, showStation } from "./sheet";
+import { hideSheet, rerenderSheet, setStationIncreases, showStation } from "./sheet";
 import { mountList } from "./list";
-import { mountInfoModal } from "./info";
+import { mountInfoModal, updateInfoModalContent } from "./info";
 import { parsePointHex } from "./wkb";
+import { getLang, setLang, t, applyStaticTranslations, type Lang } from "./i18n";
 
 const mapEl = document.getElementById("map");
 if (!(mapEl instanceof HTMLElement)) throw new Error("#map missing");
@@ -49,9 +50,20 @@ const inflightFullLoad = new Map<string, Promise<void>>();
 const loadedBboxes = new Map<string, Bbox[]>();
 let allStationRows: StationRow[] | null = null;
 let activeDate: string | null = null;
+let currentDates: string[] = [];
 let moveendTimer: number | null = null;
 
 mountInfoModal();
+
+applyStaticTranslations();
+const langToggleEl = document.getElementById("lang-toggle") as HTMLButtonElement | null;
+if (langToggleEl) langToggleEl.textContent = getLang().toUpperCase();
+langToggleEl?.addEventListener("click", () => {
+  const next: Lang = getLang() === "de" ? "en" : "de";
+  setLang(next);
+  langToggleEl.textContent = next.toUpperCase();
+  onLangSwitch();
+});
 
 const list = mountList({
   map,
@@ -391,10 +403,17 @@ const berlinOffsetFmt = new Intl.DateTimeFormat("en-GB", {
   timeZoneName: "longOffset",
 });
 
-const berlinWeekdayFmt = new Intl.DateTimeFormat("de-DE", {
-  timeZone: "Europe/Berlin",
-  weekday: "short",
-});
+let weekdayFmtCache: { lang: string; fmt: Intl.DateTimeFormat } | null = null;
+function getWeekdayFmt(): Intl.DateTimeFormat {
+  const locale = t("weekdayLocale");
+  if (!weekdayFmtCache || weekdayFmtCache.lang !== locale) {
+    weekdayFmtCache = {
+      lang: locale,
+      fmt: new Intl.DateTimeFormat(locale, { timeZone: "Europe/Berlin", weekday: "short" }),
+    };
+  }
+  return weekdayFmtCache.fmt;
+}
 
 function berlinOffsetAt(d: Date): string {
   const part = berlinOffsetFmt.formatToParts(d).find((p) => p.type === "timeZoneName")?.value;
@@ -415,6 +434,14 @@ function berlinDayBoundsForDate(date: string): { startISO: string; endISO: strin
   };
 }
 
+function onLangSwitch() {
+  applyStaticTranslations();
+  renderDayPills(currentDates, activeDate);
+  list.refresh();
+  rerenderSheet();
+  updateInfoModalContent();
+}
+
 function pillMarkup(
   date: string,
   opts: { active?: boolean; hasMenu?: boolean } = {},
@@ -424,9 +451,9 @@ function pillMarkup(
   const [, mm, dd] = date.split("-");
   const probe = new Date(`${date}T12:00:00Z`);
   let sublabel: string;
-  if (date === today) sublabel = "Heute";
-  else if (date === yesterday) sublabel = "Gestern";
-  else sublabel = berlinWeekdayFmt.format(probe);
+  if (date === today) sublabel = t("today");
+  else if (date === yesterday) sublabel = t("yesterday");
+  else sublabel = getWeekdayFmt().format(probe);
   const menuAttrs = opts.hasMenu
     ? `aria-haspopup="true" aria-expanded="false"`
     : "";
@@ -444,10 +471,11 @@ function pillMarkup(
 }
 
 function renderDayPills(dates: string[], active: string | null) {
+  currentDates = dates;
   const nav = document.getElementById("day-selector");
   if (!nav) return;
   if (dates.length === 0) {
-    nav.innerHTML = `<span class="day-empty">Keine Daten</span>`;
+    nav.innerHTML = `<span class="day-empty">${t("noData")}</span>`;
     return;
   }
   const activeDateStr = active ?? dates[0];
@@ -495,9 +523,9 @@ function pillItemLabel(date: string): string {
   const [, mm, dd] = date.split("-");
   const probe = new Date(`${date}T12:00:00Z`);
   let sublabel: string;
-  if (date === today) sublabel = "Heute";
-  else if (date === yesterday) sublabel = "Gestern";
-  else sublabel = berlinWeekdayFmt.format(probe);
+  if (date === today) sublabel = t("today");
+  else if (date === yesterday) sublabel = t("yesterday");
+  else sublabel = getWeekdayFmt().format(probe);
   return `<span class="day-popover__date">${dd}.${mm}.</span><span class="day-popover__sub">${sublabel}</span>`;
 }
 

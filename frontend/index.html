@@ -16,9 +16,9 @@
       <header class="topbar">
         <div class="topbar-title">
           <h1>Rückspiegel</h1>
-          <span class="subtitle">Preisänderungen bei Tankstellen</span>
+          <span class="subtitle" data-i18n="subtitle">Preisänderungen bei Tankstellen</span>
         </div>
-        <nav id="day-selector" class="day-selector" aria-label="Tag wählen"></nav>
+        <nav id="day-selector" class="day-selector" aria-label="Tag wählen" data-i18n-aria-label="ariaTagSelector"></nav>
         <button
           id="list-toggle"
           class="list-toggle"
@@ -26,34 +26,43 @@
           aria-expanded="false"
           aria-controls="list-panel"
           aria-label="Liste anzeigen"
+          data-i18n-aria-label="ariaListToggle"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
             <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
         </button>
         <button
+          id="lang-toggle"
+          class="lang-toggle"
+          type="button"
+          aria-label="Sprache / Language"
+        >DE</button>
+        <button
           id="info-toggle"
           class="info-toggle"
           type="button"
           aria-label="Informationen"
+          data-i18n-aria-label="ariaInfoToggle"
         >…</button>
       </header>
-      <main id="map" aria-label="Karte"></main>
-      <aside id="list-panel" class="list-panel" hidden aria-label="Tankstellen-Liste">
+      <main id="map" aria-label="Karte" data-i18n-aria-label="ariaMap"></main>
+      <aside id="list-panel" class="list-panel" hidden aria-label="Tankstellen-Liste" data-i18n-aria-label="ariaStationList">
         <div class="list-header">
           <input
             id="list-search"
             class="list-search"
             type="search"
             placeholder="Suchen (Name, Marke, Straße, PLZ)"
+            data-i18n-placeholder="searchPlaceholder"
             autocomplete="off"
             spellcheck="false"
           />
           <label class="list-filter">
             <input id="list-only-violations" type="checkbox" />
-            <span>Nur mit mehreren Erhöhungen</span>
+            <span data-i18n="onlyViolations">Nur mit mehreren Erhöhungen</span>
           </label>
-          <button id="list-close" class="list-close" type="button" aria-label="Schließen">×</button>
+          <button id="list-close" class="list-close" type="button" aria-label="Schließen" data-i18n-aria-label="ariaClose">×</button>
         </div>
         <div id="list-rows" class="list-rows" role="list"></div>
         <div id="list-footer" class="list-footer" hidden></div>
@@ -69,17 +78,18 @@
         <div class="info-modal__backdrop" data-info-close></div>
         <div class="info-modal__panel">
           <header class="info-modal__header">
-            <h2 id="info-modal-title">Informationen</h2>
+            <h2 id="info-modal-title" data-i18n="infoModalTitle">Informationen</h2>
             <button
               class="info-modal__close"
               type="button"
               aria-label="Schließen"
+              data-i18n-aria-label="ariaClose"
               data-info-close
             >×</button>
           </header>
           <div class="info-modal__body">
-            <section class="info-section">
-              <h3>Hinweis zu den Daten</h3>
+            <section id="info-section-data-note" class="info-section">
+              <h3 data-i18n="dataNoteTitle">Hinweis zu den Daten</h3>
               <p>
                 Diese Seite zeigt aufbereitete Preisänderungen deutscher Tankstellen.
                 Die Daten werden ohne Gewähr auf Vollständigkeit oder Richtigkeit dargestellt.
@@ -94,8 +104,8 @@
                 gegen gesetzliche oder kartellrechtliche Vorgaben verstoßen hat.
               </p>
             </section>
-            <section class="info-section">
-              <h3>Datenquelle &amp; Lizenz</h3>
+            <section id="info-section-data-source" class="info-section">
+              <h3 data-i18n="dataSourceTitle">Datenquelle &amp; Lizenz</h3>
               <p>
                 Die Tankstellen- und Preisdaten stammen von
                 <a href="https://creativecommons.tankerkoenig.de/" target="_blank" rel="noreferrer noopener">Tankerkönig</a>
@@ -324,9 +334,9 @@
         <div class="info-modal__backdrop"></div>
         <div class="info-modal__panel info-modal__panel--compact">
           <header class="info-modal__header">
-            <h2 id="disclaimer-modal-title">Hinweis zu den Daten</h2>
+            <h2 id="disclaimer-modal-title" data-i18n="disclaimerModalTitle">Hinweis zu den Daten</h2>
           </header>
-          <div class="info-modal__body">
+          <div id="disclaimer-body" class="info-modal__body">
             <section class="info-section">
               <p>
                 Rückspiegel zeigt Preisänderungen deutscher Tankstellen auf Basis öffentlich
@@ -347,7 +357,7 @@
             </section>
           </div>
           <footer class="info-modal__footer">
-            <button id="disclaimer-accept" class="info-modal__primary" type="button">
+            <button id="disclaimer-accept" class="info-modal__primary" type="button" data-i18n="disclaimerAccept">
               Verstanden
             </button>
           </footer>

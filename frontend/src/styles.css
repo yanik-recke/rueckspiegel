@@ -10,6 +10,7 @@
   --accent: #4ade80;
   --warn: #f59e0b;
   --bad: #ef4444;
+  --bad-chart: #f87171;
   --radius: 14px;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
@@ -18,6 +19,8 @@
 * {
   box-sizing: border-box;
 }
+
+[hidden] { display: none !important; }
 
 html,
 body,
@@ -851,6 +854,31 @@ body.modal-open {
 
 @media (max-width: 767px) {
   .subtitle { display: none; }
+}
+
+/* ── Icon button (bare, ghost) ───────────────────────────────── */
+
+.icon-btn {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ── Stats panel ─────────────────────────────────────────────── */

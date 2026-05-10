@@ -80,6 +80,13 @@ export function mountStats(): StatsView {
     panel!.classList.add("is-open");
 
     errorEl!.hidden = true;
+
+    if (lastRows !== null) {
+      loadingEl!.hidden = true;
+      renderChart(lastRows);
+      return;
+    }
+
     loadingEl!.hidden = false;
 
     try {
@@ -127,11 +134,9 @@ export function mountStats(): StatsView {
       return;
     }
 
-    // --bad token (#ef4444) — read once from the document so a future theme tweak
-    // automatically propagates without touching this file.
     const badColor = getComputedStyle(document.documentElement)
-      .getPropertyValue("--bad")
-      .trim() || "#ef4444";
+      .getPropertyValue("--bad-chart")
+      .trim() || "#f87171";
 
     const commonOptions = {
       responsive: true,

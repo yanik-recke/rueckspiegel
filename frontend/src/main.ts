@@ -119,6 +119,17 @@ async function selectDate(date: string, dates: string[]) {
   list.refresh();
 
   if (fullyLoadedDates.has(date)) return;
+
+  if (list.isOpen()) {
+    // List is open but date not fully loaded: run full load with spinner so
+    // the list shows all stations rather than the viewport bbox subset only.
+    await list.reload();
+    if (activeDate === date) {
+      renderStations(map, currentStations(date), (s) => onStationClick(s, date));
+    }
+    return;
+  }
+
   // Trigger a viewport-scoped fetch only if dots would actually be visible.
   if (map.getZoom() >= STATIONS_MIN_ZOOM) {
     const bbox = padBbox(getViewportBbox(map), 0.1);

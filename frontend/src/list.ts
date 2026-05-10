@@ -15,6 +15,7 @@ interface MountOptions {
 
 interface ListController {
   refresh: () => void;
+  reload: () => Promise<void>;
   open: () => Promise<void>;
   close: () => void;
   isOpen: () => boolean;
@@ -56,12 +57,7 @@ export function mountList(opts: MountOptions): ListController {
     panel!.style.setProperty("--list-top", `${topbar.offsetHeight}px`);
   }
 
-  async function open() {
-    syncTopbarOffset();
-    panel!.hidden = false;
-    toggle!.setAttribute("aria-expanded", "true");
-    if (!isMobile()) queueMicrotask(() => searchInput!.focus());
-
+  async function doLoad() {
     if (opts.ensureLoaded) {
       rowsContainer!.innerHTML = `<div class="list-empty"><span class="list-spinner" aria-hidden="true"></span><span>${t("loadingStations")}</span></div>`;
       footer!.hidden = true;
@@ -81,6 +77,19 @@ export function mountList(opts: MountOptions): ListController {
     requestAnimationFrame(() => {
       requestAnimationFrame(render);
     });
+  }
+
+  async function open() {
+    syncTopbarOffset();
+    panel!.hidden = false;
+    toggle!.setAttribute("aria-expanded", "true");
+    if (!isMobile()) queueMicrotask(() => searchInput!.focus());
+    await doLoad();
+  }
+
+  async function reload() {
+    if (panel!.hidden) return;
+    await doLoad();
   }
 
   function close() {
@@ -176,7 +185,7 @@ export function mountList(opts: MountOptions): ListController {
 
   closeBtn.addEventListener("click", () => close());
 
-  return { refresh: render, open, close, isOpen };
+  return { refresh: render, reload, open, close, isOpen };
 }
 
 function rowMarkup(s: Station): string {

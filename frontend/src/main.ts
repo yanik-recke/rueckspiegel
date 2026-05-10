@@ -17,6 +17,7 @@ import {
 } from "./supabase";
 import { hideSheet, rerenderSheet, setStationIncreases, showStation } from "./sheet";
 import { mountList } from "./list";
+import { mountStats } from "./stats";
 import { mountInfoModal, updateInfoModalContent } from "./info";
 import { parsePointHex } from "./wkb";
 import { getLang, setLang, t, applyStaticTranslations, type Lang } from "./i18n";
@@ -78,6 +79,17 @@ const list = mountList({
   },
 });
 
+const stats = mountStats();
+
+document.getElementById("stats-toggle")!.addEventListener("click", () => {
+  if (stats.isOpen()) {
+    stats.close();
+  } else {
+    if (list.isOpen()) list.close();
+    stats.open();
+  }
+});
+
 map.once("load", async () => {
   try {
     const dates = await loadAvailableDates(5);
@@ -110,6 +122,7 @@ async function selectDate(date: string, dates: string[]) {
   activeDate = date;
   renderDayPills(dates, date);
   hideSheet();
+  stats.close();
   setSelectedStation(map, null);
 
   // Render whatever we have cached for this date right away (may be empty —

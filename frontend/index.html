@@ -33,6 +33,21 @@
           </svg>
         </button>
         <button
+          id="stats-toggle"
+          class="stats-toggle"
+          type="button"
+          aria-label="Statistiken"
+          data-i18n-aria-label="ariaStatsToggle"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6"  y1="20" x2="6"  y2="14"/>
+          </svg>
+        </button>
+        <button
           id="lang-toggle"
           class="lang-toggle"
           type="button"
@@ -67,6 +82,34 @@
         <div id="list-rows" class="list-rows" role="list"></div>
         <div id="list-footer" class="list-footer" hidden></div>
       </aside>
+      <div id="stats-panel" class="stats-panel" hidden
+           role="region" aria-label="Statistiken" data-i18n-aria-label="ariaStatsPanel">
+
+        <div class="stats-header">
+          <h2 data-i18n="statsTitle">Statistiken</h2>
+          <button id="stats-close" class="icon-btn" type="button"
+                  aria-label="Schließen" data-i18n-aria-label="ariaClose">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <section class="stats-section">
+          <h3 class="stats-chart-title" data-i18n="statsChartTitle">
+            Stationen mit mehrfacher Preiserhöhung
+          </h3>
+          <div class="stats-chart-wrap">
+            <canvas id="stats-chart-canvas"></canvas>
+          </div>
+          <p id="stats-loading" class="stats-placeholder" hidden data-i18n="loading">Lade …</p>
+          <p id="stats-error"   class="stats-placeholder stats-error-text" hidden></p>
+        </section>
+
+      </div>
       <div
         id="info-modal"
         class="info-modal"

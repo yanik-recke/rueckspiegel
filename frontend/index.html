@@ -102,10 +102,26 @@
           <h3 class="stats-chart-title" data-i18n="statsChartTitle">
             Stationen mit mehrfacher Preiserhöhung
           </h3>
+          <div class="chart-type-switcher" role="group" aria-label="Diagramm-Typ">
+            <button class="chart-type-btn chart-type-btn--active"
+                    data-chart-type="bar"
+                    type="button"
+                    data-i18n="chartTypeBar">Balken</button>
+            <button class="chart-type-btn"
+                    data-chart-type="line"
+                    type="button"
+                    data-i18n="chartTypeLine">Linie</button>
+            <button class="chart-type-btn"
+                    data-chart-type="dot"
+                    type="button"
+                    data-i18n="chartTypeDot">Punkte</button>
+          </div>
           <div class="stats-chart-wrap">
             <canvas id="stats-chart-canvas"></canvas>
           </div>
-          <p id="stats-loading" class="stats-placeholder" hidden data-i18n="loading">Lade …</p>
+          <div id="stats-loading" class="stats-loading-wrap" hidden>
+            <span class="stats-spinner" aria-hidden="true"></span>
+          </div>
           <p id="stats-error"   class="stats-placeholder stats-error-text" hidden></p>
         </section>
 

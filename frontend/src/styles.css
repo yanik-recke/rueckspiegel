@@ -10,6 +10,7 @@
   --accent: #4ade80;
   --warn: #f59e0b;
   --bad: #ef4444;
+  --bad-chart: #f87171;
   --radius: 14px;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
@@ -18,6 +19,8 @@
 * {
   box-sizing: border-box;
 }
+
+[hidden] { display: none !important; }
 
 html,
 body,
@@ -853,22 +856,52 @@ body.modal-open {
   .subtitle { display: none; }
 }
 
+/* ── Icon button (bare, ghost) ───────────────────────────────── */
+
+.icon-btn {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* ── Stats panel ─────────────────────────────────────────────── */
 
 .stats-toggle {
-  display: flex;
+  flex: none;
+  width: 2.5rem;
+  height: 2.6rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: none;
-  background: transparent;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   color: var(--text);
   cursor: pointer;
-  border-radius: 8px;
-  flex-shrink: 0;
+  transition: background 120ms ease, border-color 120ms ease;
 }
-.stats-toggle:hover { background: var(--surface-2); }
+.stats-toggle:hover { background: var(--surface); }
+.stats-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
 .stats-panel {
   position: fixed;
@@ -884,6 +917,7 @@ body.modal-open {
 .stats-panel.is-open { transform: translateY(0); }
 
 .stats-header {
+  padding-top: 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -919,6 +953,56 @@ body.modal-open {
   margin-top: 1rem;
 }
 .stats-error-text { color: var(--bad); }
+
+.stats-loading-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.stats-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: list-toggle-spin 700ms linear infinite;
+}
+
+.chart-type-switcher {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.chart-type-btn {
+  padding: 0.3rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.chart-type-btn--active {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.chart-type-btn:hover:not(.chart-type-btn--active) {
+  background: var(--surface);
+}
+
+.chart-type-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
 /* On wider screens cap the content width so bars don't stretch too wide */
 @media (min-width: 768px) {

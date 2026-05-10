@@ -1,1 +1,1 @@
-{"root":["./src/i18n.ts","./src/info.ts","./src/list.ts","./src/main.ts","./src/map.ts","./src/sheet.ts","./src/supabase.ts","./src/wkb.ts"],"version":"5.9.3"}
+{"root":["./src/i18n.ts","./src/info.ts","./src/list.ts","./src/main.ts","./src/map.ts","./src/sheet.ts","./src/stats.ts","./src/supabase.ts","./src/wkb.ts"],"version":"5.9.3"}

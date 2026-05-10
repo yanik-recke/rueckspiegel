@@ -75,3 +75,9 @@ export type DailyComplianceRow = {
   price_e10: number | null;
   price_diesel: number | null;
 };
+
+export interface ComplianceStatRow {
+  stat_date: string;
+  non_compliant_count: number;
+  total_stations: number;
+}

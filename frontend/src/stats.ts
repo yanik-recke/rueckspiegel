@@ -2,6 +2,9 @@ import {
   Chart,
   BarController,
   BarElement,
+  LineController,
+  LineElement,
+  PointElement,
   CategoryScale,
   LinearScale,
   Tooltip,
@@ -9,7 +12,16 @@ import {
 import { supabase, type ComplianceStatRow } from "./supabase";
 import { t } from "./i18n";
 
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
+Chart.register(
+  BarController,
+  BarElement,
+  LineController,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip
+);
 
 export interface StatsView {
   open(): void;
@@ -17,6 +29,8 @@ export interface StatsView {
   isOpen(): boolean;
   toggle(): void;
 }
+
+type ChartKind = "bar" | "line" | "dot";
 
 export function mountStats(): StatsView {
   const panel = document.getElementById("stats-panel") as HTMLElement | null;
@@ -29,10 +43,31 @@ export function mountStats(): StatsView {
     throw new Error("stats-panel markup missing");
   }
 
-  let chart: Chart<"bar", number[], string> | null = null;
+  let chart: Chart | null = null;
   let pendingHideTimer: number | null = null;
+  let currentChartType: ChartKind = "bar";
+  let lastRows: ComplianceStatRow[] | null = null;
 
   closeBtn.addEventListener("click", () => close());
+
+  const switcherBtns = panel.querySelectorAll<HTMLButtonElement>(".chart-type-btn");
+  switcherBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const kind = btn.dataset.chartType as ChartKind;
+      if (kind === currentChartType) return;
+      currentChartType = kind;
+      switcherBtns.forEach((b) =>
+        b.classList.toggle("chart-type-btn--active", b === btn)
+      );
+      if (lastRows) {
+        if (chart) {
+          chart.destroy();
+          chart = null;
+        }
+        renderChart(lastRows);
+      }
+    });
+  });
 
   async function open(): Promise<void> {
     if (pendingHideTimer != null) {
@@ -52,6 +87,7 @@ export function mountStats(): StatsView {
       if (error) throw error;
       const rows = (data ?? []) as ComplianceStatRow[];
       loadingEl!.hidden = true;
+      lastRows = rows;
       renderChart(rows);
     } catch (err) {
       console.error("[stats] load failed", err);
@@ -97,45 +133,88 @@ export function mountStats(): StatsView {
       .getPropertyValue("--bad")
       .trim() || "#ef4444";
 
-    chart = new Chart<"bar", number[], string>(canvas!, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: t("statsChartTitle"),
-            data: values,
-            backgroundColor: badColor,
-            borderRadius: 4,
-          },
-        ],
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          // --border (#2a2f37) at 80% alpha
+          grid: { color: "rgba(42,47,55,0.8)" },
+          // --text-muted (#8a93a0)
+          ticks: { color: "#8a93a0" },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#8a93a0", precision: 0 },
+          grid: { color: "rgba(42,47,55,0.8)" },
+        },
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            // --border (#2a2f37) at 80% alpha
-            grid: { color: "rgba(42,47,55,0.8)" },
-            // --text-muted (#8a93a0)
-            ticks: { color: "#8a93a0" },
-          },
-          y: {
-            beginAtZero: true,
-            ticks: { color: "#8a93a0", precision: 0 },
-            grid: { color: "rgba(42,47,55,0.8)" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx: any) => `${ctx.parsed.y} ${t("statsTooltipLabel")}`,
           },
         },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.parsed.y} ${t("statsTooltipLabel")}`,
+      },
+    };
+
+    if (currentChartType === "bar") {
+      chart = new Chart(canvas!, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: t("statsChartTitle"),
+              data: values,
+              backgroundColor: badColor,
+              borderRadius: 4,
             },
-          },
+          ],
         },
-      },
-    });
+        options: commonOptions,
+      });
+    } else if (currentChartType === "line") {
+      chart = new Chart(canvas!, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: t("statsChartTitle"),
+              data: values,
+              borderColor: badColor,
+              backgroundColor: badColor + "33",
+              fill: true,
+              tension: 0.3,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+            },
+          ],
+        },
+        options: commonOptions,
+      });
+    } else {
+      chart = new Chart(canvas!, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: t("statsChartTitle"),
+              data: values,
+              showLine: false,
+              borderColor: badColor,
+              backgroundColor: badColor,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+            },
+          ],
+        },
+        options: commonOptions,
+      });
+    }
   }
 
   return { open, close, isOpen, toggle };

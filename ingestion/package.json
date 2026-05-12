@@ -5,7 +5,8 @@
   "scripts": {
     "load-stations": "bun run src/load-stations.ts",
     "load-prices": "bun run src/load-prices.ts",
-    "daily": "bun run src/load-stations.ts && bun run src/load-prices.ts"
+    "daily": "bun run src/load-stations.ts && bun run src/load-prices.ts",
+    "delete-date": "bun run src/delete-date.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

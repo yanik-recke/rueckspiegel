@@ -12,6 +12,7 @@ ingestion/               Bun + TS scripts that pull tankerkoenig data into Supab
   src/lib.ts             Shared helpers: env, Berlin "yesterday", Basic-auth fetch (text/stream), logger, supabase client
   src/load-stations.ts   Fetches yesterday's stations CSV and upserts into `stations`
   src/load-prices.ts     Streams yesterday's prices CSV and upserts into `price_changes`
+  src/delete-date.ts     Dump-then-delete `price_changes` + `daily_compliance` for one or more dates
   README.md              Setup, env vars, CSV→DB column mapping, sample log output
 ```
 
@@ -65,6 +66,7 @@ Scripts (run from `ingestion/`):
 - `bun run load-stations` — refresh stations.
 - `bun run load-prices` — ingest yesterday's price events.
 - `bun run daily` — runs the two in order; this is the cron entry point. Stations must run first because `price_changes.station_id` has an FK to `stations.id`.
+- `bun run delete-date -- --date YYYY-MM-DD [--date ...] [--dump-dir PATH]` — operator tool for dropping a past date's data. Writes a SQL dump file (`./dumps/dump_YYYY-MM-DD_<unix-ms>.sql` by default, `BEGIN; INSERT … ON CONFLICT DO NOTHING; COMMIT;`) before deleting; if the dump can't be written, no rows are deleted for that date. Deletes `daily_compliance` first (derived), then `price_changes` (source). The `stations` table is never touched. UTC range filter (`created_at >= date AND < next_day`) — see "Why use UTC date range" note in `ingestion/README.md`.
 
 Recommended schedule: ~03:00 Europe/Berlin (yesterday's CSV is published by then). Scheduler choice (cron / GH Actions / Supabase scheduled function) is out of scope.
 

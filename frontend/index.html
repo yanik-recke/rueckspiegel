@@ -32,6 +32,21 @@
             <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
         </button>
+        <button
+          id="stats-toggle"
+          class="stats-toggle"
+          type="button"
+          aria-label="Statistiken"
+          data-i18n-aria-label="ariaStatsToggle"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6"  y1="20" x2="6"  y2="14"/>
+          </svg>
+        </button>
         <div class="more-menu">
           <button
             id="more-toggle"
@@ -50,37 +65,12 @@
             </svg>
           </button>
           <div id="more-popover" class="more-popover" hidden role="menu">
-            <button class="more-popover__item" id="more-stats-item" type="button" role="menuitem">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                   stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="20" x2="18" y2="10"/>
-                <line x1="12" y1="20" x2="12" y2="4"/>
-                <line x1="6"  y1="20" x2="6"  y2="14"/>
-              </svg>
-              <span data-i18n="statsTitle">Statistiken</span>
-            </button>
             <button class="more-popover__item" id="more-lang-item" type="button" role="menuitem">DE</button>
             <button class="more-popover__item" id="more-info-item" type="button" role="menuitem">
               <span data-i18n="infoModalTitle">Informationen</span>
             </button>
           </div>
         </div>
-        <button
-          id="stats-toggle"
-          class="stats-toggle"
-          type="button"
-          aria-label="Statistiken"
-          data-i18n-aria-label="ariaStatsToggle"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round"
-               stroke-linejoin="round" aria-hidden="true">
-            <line x1="18" y1="20" x2="18" y2="10"/>
-            <line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6"  y1="20" x2="6"  y2="14"/>
-          </svg>
-        </button>
         <button
           id="lang-toggle"
           class="lang-toggle"
@@ -93,7 +83,14 @@
           type="button"
           aria-label="Informationen"
           data-i18n-aria-label="ariaInfoToggle"
-        >…</button>
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4M12 8h.01"/>
+          </svg>
+        </button>
       </header>
       <main id="map" aria-label="Karte" data-i18n-aria-label="ariaMap"></main>
       <aside id="list-panel" class="list-panel" hidden aria-label="Tankstellen-Liste" data-i18n-aria-label="ariaStationList">

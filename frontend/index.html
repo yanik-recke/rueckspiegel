@@ -32,6 +32,40 @@
             <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
         </button>
+        <div class="more-menu">
+          <button
+            id="more-toggle"
+            class="more-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-label="Weitere Optionen"
+            data-i18n-aria-label="ariaMoreToggle"
+          >
+            <svg width="4" height="16" viewBox="0 0 4 16" fill="currentColor"
+                 aria-hidden="true" focusable="false">
+              <circle cx="2" cy="2" r="2"/>
+              <circle cx="2" cy="8" r="2"/>
+              <circle cx="2" cy="14" r="2"/>
+            </svg>
+          </button>
+          <div id="more-popover" class="more-popover" hidden role="menu">
+            <button class="more-popover__item" id="more-stats-item" type="button" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                   stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6"  y1="20" x2="6"  y2="14"/>
+              </svg>
+              <span data-i18n="statsTitle">Statistiken</span>
+            </button>
+            <button class="more-popover__item" id="more-lang-item" type="button" role="menuitem">DE</button>
+            <button class="more-popover__item" id="more-info-item" type="button" role="menuitem">
+              <span data-i18n="infoModalTitle">Informationen</span>
+            </button>
+          </div>
+        </div>
         <button
           id="stats-toggle"
           class="stats-toggle"

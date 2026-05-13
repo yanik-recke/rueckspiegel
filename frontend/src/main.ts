@@ -58,11 +58,20 @@ mountInfoModal();
 
 applyStaticTranslations();
 const langToggleEl = document.getElementById("lang-toggle") as HTMLButtonElement | null;
-if (langToggleEl) langToggleEl.textContent = getLang().toUpperCase();
+const moreLangItemEl = document.getElementById("more-lang-item") as HTMLButtonElement | null;
+
+function syncLangLabels(lang: Lang) {
+  const label = lang.toUpperCase();
+  if (langToggleEl) langToggleEl.textContent = label;
+  if (moreLangItemEl) moreLangItemEl.textContent = label;
+}
+
+syncLangLabels(getLang());
+
 langToggleEl?.addEventListener("click", () => {
   const next: Lang = getLang() === "de" ? "en" : "de";
   setLang(next);
-  langToggleEl.textContent = next.toUpperCase();
+  syncLangLabels(next);
   onLangSwitch();
 });
 
@@ -88,6 +97,50 @@ document.getElementById("stats-toggle")!.addEventListener("click", () => {
     if (list.isOpen()) list.close();
     stats.open();
   }
+});
+
+const moreToggleEl = document.getElementById("more-toggle") as HTMLButtonElement | null;
+const morePopoverEl = document.getElementById("more-popover") as HTMLElement | null;
+
+function setMoreOpen(open: boolean) {
+  if (!moreToggleEl || !morePopoverEl) return;
+  morePopoverEl.hidden = !open;
+  moreToggleEl.setAttribute("aria-expanded", String(open));
+}
+
+moreToggleEl?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const isOpen = moreToggleEl.getAttribute("aria-expanded") === "true";
+  setMoreOpen(!isOpen);
+});
+
+document.getElementById("more-stats-item")?.addEventListener("click", () => {
+  setMoreOpen(false);
+  if (list.isOpen()) list.close();
+  stats.open();
+});
+
+moreLangItemEl?.addEventListener("click", () => {
+  setMoreOpen(false);
+  const next: Lang = getLang() === "de" ? "en" : "de";
+  setLang(next);
+  syncLangLabels(next);
+  onLangSwitch();
+});
+
+document.getElementById("more-info-item")?.addEventListener("click", () => {
+  setMoreOpen(false);
+  document.getElementById("info-toggle")?.click();
+});
+
+document.addEventListener("click", (e) => {
+  if (!morePopoverEl || morePopoverEl.hidden) return;
+  if (e.target instanceof Node && morePopoverEl.contains(e.target)) return;
+  setMoreOpen(false);
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && morePopoverEl && !morePopoverEl.hidden) setMoreOpen(false);
 });
 
 map.once("load", async () => {

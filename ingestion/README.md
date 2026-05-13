@@ -31,6 +31,7 @@ The service-role key bypasses RLS, which is what we want for ingestion. Keep it 
 | `bun run load-stations` | Refresh `stations` from yesterday's stations CSV.                  |
 | `bun run load-prices`   | Ingest yesterday's price-change events into `price_changes`.       |
 | `bun run daily`         | `load-stations` then `load-prices` — the cron entry point.         |
+| `bun run delete-date`   | Dump-then-delete `price_changes` + `daily_compliance` for given date(s). |
 
 Recommended schedule: ~03:00 Europe/Berlin so yesterday's CSV is definitely published. Scheduler (cron / GH Actions / Supabase scheduled function) is out of scope.
 
@@ -115,6 +116,33 @@ Upserts in batches of 5000 with `onConflict: "station_id,created_at", ignoreDupl
 Foreign-key violations (`23503`, "station not found") are logged as a WARN per affected batch but don't abort the run. If you see them, run `load-stations` first (or just use `bun run daily`).
 
 Streaming CSV parser (`csv-parse` async iterator), so the daily file is processed as it arrives — memory stays flat.
+
+### Deleting a past date
+
+Use when you need to drop all price data for one or more historical dates (e.g. to free up space or remove a corrupted ingest).
+
+```bash
+# Remove a single date
+bun run delete-date -- --date 2026-04-01
+
+# Remove multiple dates
+bun run delete-date -- --date 2026-03-01 --date 2026-03-02
+
+# Write dump files to a custom directory (default: ./dumps)
+bun run delete-date -- --date 2026-04-01 --dump-dir /backups/ruckspiegel
+```
+
+**What is deleted:** every `price_changes` row whose `created_at` falls inside the date's UTC day, and every `daily_compliance` row whose `date` equals the given date. The `stations` table is **never** touched.
+
+**Dump file (safety net):** before any delete, the script writes a SQL file named `dump_YYYY-MM-DD_<unix-ms>.sql` to the dump directory (`./dumps/` by default). It contains `BEGIN; … COMMIT;` with batched `INSERT … ON CONFLICT DO NOTHING` statements for both tables — restore with:
+
+```bash
+psql "$DATABASE_URL" -f ./dumps/dump_2026-04-01_<ts>.sql
+```
+
+If the dump cannot be written, **no rows are deleted** for that date. Deletion order is `daily_compliance` (derived) before `price_changes` (source of truth), so a failure between the two leaves the raw events intact.
+
+There is no interactive confirmation prompt — the dump file is the safety mechanism, and the script is intended to be cron-friendly.
 
 ## Roadmap
 

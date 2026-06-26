@@ -6,12 +6,14 @@ import { log, requireSupabase } from "./lib";
 type Args = {
   dates: string[];
   dumpDir: string;
+  dump: boolean;
 };
 
 function parseArgs(): Args {
   const argv = process.argv.slice(2);
   const dates: string[] = [];
   let dumpDir = "./dumps";
+  let dump = true;
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -29,6 +31,8 @@ function parseArgs(): Args {
         process.exit(1);
       }
       dumpDir = value;
+    } else if (a === "--no-dump") {
+      dump = false;
     } else {
       console.error(`[fatal] unknown argument: ${a}`);
       printUsage();
@@ -49,12 +53,12 @@ function parseArgs(): Args {
     }
   }
 
-  return { dates, dumpDir };
+  return { dates, dumpDir, dump };
 }
 
 function printUsage(): void {
   console.error(
-    "usage: bun run delete-date -- --date YYYY-MM-DD [--date YYYY-MM-DD ...] [--dump-dir PATH]",
+    "usage: bun run delete-date -- --date YYYY-MM-DD [--date YYYY-MM-DD ...] [--dump-dir PATH] [--no-dump]",
   );
 }
 
@@ -185,56 +189,66 @@ async function dumpDailyCompliance(
   return total;
 }
 
-async function processDate(supabase: SupabaseClient, date: string, dumpDir: string): Promise<void> {
+async function processDate(
+  supabase: SupabaseClient,
+  date: string,
+  dumpDir: string,
+  dump: boolean,
+): Promise<void> {
   const nextDay = nextDayUtc(date);
-  const dumpPath = join(dumpDir, `dump_${date}_${Date.now()}.sql`);
 
-  let fd: number;
-  try {
-    fd = openSync(dumpPath, "w");
-  } catch (e) {
-    log.error(`${date}: failed to open dump file ${dumpPath}: ${(e as Error).message}`);
-    log.warn(`${date}: skipping deletion — dump is the safety net`);
-    return;
-  }
+  if (dump) {
+    const dumpPath = join(dumpDir, `dump_${date}_${Date.now()}.sql`);
 
-  let priceRowCount = 0;
-  let complianceRowCount = 0;
-  try {
-    writeSync(
-      fd,
-      `-- Rückspiegel data dump\n-- Date: ${date}\n-- Generated: ${new Date().toISOString()}\n\nBEGIN;\n\n`,
-    );
+    let fd: number;
+    try {
+      fd = openSync(dumpPath, "w");
+    } catch (e) {
+      log.error(`${date}: failed to open dump file ${dumpPath}: ${(e as Error).message}`);
+      log.warn(`${date}: skipping deletion — dump is the safety net`);
+      return;
+    }
 
-    log.info(`${date}: dumping price_changes…`);
-    priceRowCount = await dumpPriceChanges(supabase, date, nextDay, fd);
-    log.info(`${date}: dumped ${priceRowCount.toLocaleString()} price_changes row(s)`);
+    let priceRowCount = 0;
+    let complianceRowCount = 0;
+    try {
+      writeSync(
+        fd,
+        `-- Rückspiegel data dump\n-- Date: ${date}\n-- Generated: ${new Date().toISOString()}\n\nBEGIN;\n\n`,
+      );
 
-    log.info(`${date}: dumping daily_compliance…`);
-    complianceRowCount = await dumpDailyCompliance(supabase, date, fd);
-    log.info(`${date}: dumped ${complianceRowCount.toLocaleString()} daily_compliance row(s)`);
+      log.info(`${date}: dumping price_changes…`);
+      priceRowCount = await dumpPriceChanges(supabase, date, nextDay, fd);
+      log.info(`${date}: dumped ${priceRowCount.toLocaleString()} price_changes row(s)`);
 
-    writeSync(fd, "COMMIT;\n");
-  } catch (e) {
-    log.error(`${date}: dump failed: ${(e as Error).message}`);
-    log.warn(`${date}: skipping deletion — dump is the safety net`);
+      log.info(`${date}: dumping daily_compliance…`);
+      complianceRowCount = await dumpDailyCompliance(supabase, date, fd);
+      log.info(`${date}: dumped ${complianceRowCount.toLocaleString()} daily_compliance row(s)`);
+
+      writeSync(fd, "COMMIT;\n");
+    } catch (e) {
+      log.error(`${date}: dump failed: ${(e as Error).message}`);
+      log.warn(`${date}: skipping deletion — dump is the safety net`);
+      try {
+        closeSync(fd);
+      } catch {}
+      return;
+    }
+
     try {
       closeSync(fd);
-    } catch {}
-    return;
-  }
+    } catch (e) {
+      log.error(`${date}: failed to close dump file: ${(e as Error).message}`);
+      log.warn(`${date}: skipping deletion — dump may be incomplete`);
+      return;
+    }
 
-  try {
-    closeSync(fd);
-  } catch (e) {
-    log.error(`${date}: failed to close dump file: ${(e as Error).message}`);
-    log.warn(`${date}: skipping deletion — dump may be incomplete`);
-    return;
+    log.info(
+      `${date}: dump written: ${dumpPath} (${priceRowCount.toLocaleString()} price_changes, ${complianceRowCount.toLocaleString()} daily_compliance rows)`,
+    );
+  } else {
+    log.warn(`${date}: --no-dump set — deleting without a backup`);
   }
-
-  log.info(
-    `${date}: dump written: ${dumpPath} (${priceRowCount.toLocaleString()} price_changes, ${complianceRowCount.toLocaleString()} daily_compliance rows)`,
-  );
 
   // Delete daily_compliance first (derived data), then price_changes (source).
   let deletedCompliance = 0;
@@ -274,16 +288,22 @@ async function processDate(supabase: SupabaseClient, date: string, dumpDir: stri
 }
 
 async function main() {
-  const { dates, dumpDir } = parseArgs();
+  const { dates, dumpDir, dump } = parseArgs();
 
-  mkdirSync(dumpDir, { recursive: true });
+  if (dump) {
+    mkdirSync(dumpDir, { recursive: true });
+  }
 
   const supabase = requireSupabase();
   log.info(`deleting ${dates.length} date(s): ${dates.join(", ")}`);
-  log.info(`dump directory: ${dumpDir}`);
+  if (dump) {
+    log.info(`dump directory: ${dumpDir}`);
+  } else {
+    log.warn("dumps disabled (--no-dump) — deletions are not backed up");
+  }
 
   for (const date of dates) {
-    await processDate(supabase, date, dumpDir);
+    await processDate(supabase, date, dumpDir, dump);
   }
 
   log.info(`done in ${((Date.now() - log.startedAt()) / 1000).toFixed(1)}s`);
